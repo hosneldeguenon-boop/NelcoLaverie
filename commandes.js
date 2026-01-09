@@ -94,12 +94,6 @@ function calculerPrixRepassage(poidsVolumineux, poidsOrdinaire) {
 }
 
 // CALCULER LE PRIX DU LAVAGE POUR LINGE VOLUMINEUX
-// Logique corrigée : 
-// - Toujours machine 10kg
-// - À partir de 10kg : lavé en 2 parties
-// - Si reste < 9kg : lavé en 1 partie
-// - Si reste >= 9kg : lavé en 2 parties
-// - Pour chaque 2ème partie : 55% du prix (45% de réduction)
 function calculerPrixLavageVolumineux(poids, temperature) {
     if (poids <= 0) return 0;
     
@@ -256,7 +250,6 @@ function calculerPrixTotal() {
     const prixLavageSansReduction = prixLavageTotal;
     
     // RÉDUCTION FIDÉLITÉ : ptf > 10 ET ptf % 10 === 1
-    // La réduction s'applique sur le TOTAL FINAL, pas sur le prix de lavage affiché
     const pointsFidelite = getPointsFidelite();
     let reductionFidelite = 0;
     if (pointsFidelite > 10 && pointsFidelite % 10 === 1) {
@@ -281,7 +274,7 @@ function calculerPrixTotal() {
     const totalAvantReduction = prixLavageSansReduction + prixSechage + prixPliage + prixRepassage + prixCollecte;
     const total = Math.max(0, totalAvantReduction - reductionFidelite);
     
-    // Mettre à jour l'affichage - Le prix de lavage affiché est SANS réduction
+    // Mettre à jour l'affichage
     document.getElementById('prixLavageOutput').textContent = prixLavageSansReduction.toLocaleString();
     document.getElementById('prixSechageOutput').textContent = prixSechage.toLocaleString();
     document.getElementById('prixPliageOutput').textContent = prixPliage.toLocaleString();
@@ -324,6 +317,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // Charger les points de fidélité de l'utilisateur
     loadUserPoints();
     
+    // Définir la date minimale comme aujourd'hui
+    const today = new Date().toISOString().split('T')[0];
+    
+    const dateCollecte = document.getElementById('dateCollecte');
+    const dateLivraison = document.getElementById('dateLivraison');
+    
+    if (dateCollecte) {
+        dateCollecte.setAttribute('min', today);
+    }
+    
+    if (dateLivraison) {
+        dateLivraison.setAttribute('min', today);
+    }
+    
+    // Mettre à jour la date min de livraison quand la date de collecte change
+    if (dateCollecte && dateLivraison) {
+        dateCollecte.addEventListener('change', function() {
+            const collecteDate = this.value;
+            if (collecteDate) {
+                // La date de livraison doit être au minimum le jour après la collecte
+                const nextDay = new Date(collecteDate);
+                nextDay.setDate(nextDay.getDate() + 1);
+                const minDeliveryDate = nextDay.toISOString().split('T')[0];
+                dateLivraison.setAttribute('min', minDeliveryDate);
+                
+                // Si la date de livraison actuelle est antérieure, la réinitialiser
+                if (dateLivraison.value && dateLivraison.value <= collecteDate) {
+                    dateLivraison.value = '';
+                }
+            }
+        });
+    }
+    
     // Écouter tous les changements dans le formulaire pour recalculer
     form.addEventListener('input', calculerPrixTotal);
     form.addEventListener('change', calculerPrixTotal);
@@ -344,10 +370,33 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Vérifier que les dates sont valides
-        const dateCollecte = new Date(formData.get('dateCollecte'));
-        const dateLivraison = new Date(formData.get('dateLivraison'));
+        // Vérifier que les dates sont valides et non antérieures à aujourd'hui
+        const aujourdhui = new Date();
+        aujourdhui.setHours(0, 0, 0, 0);
         
+        const dateCollecteValue = formData.get('dateCollecte');
+        const dateLivraisonValue = formData.get('dateLivraison');
+        
+        if (!dateCollecteValue || !dateLivraisonValue) {
+            alert('Veuillez renseigner les dates de collecte et de livraison.');
+            return;
+        }
+        
+        const dateCollecte = new Date(dateCollecteValue);
+        const dateLivraison = new Date(dateLivraisonValue);
+        
+        // Vérifier que les dates ne sont pas antérieures à aujourd'hui
+        if (dateCollecte < aujourdhui) {
+            alert('La date de collecte ne peut pas être antérieure à la date du jour.');
+            return;
+        }
+        
+        if (dateLivraison < aujourdhui) {
+            alert('La date de livraison ne peut pas être antérieure à la date du jour.');
+            return;
+        }
+        
+        // Vérifier que la date de livraison est après la date de collecte
         if (dateLivraison <= dateCollecte) {
             alert('La date de livraison doit être après la date de collecte.');
             return;

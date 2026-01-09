@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Formulaire de Commande de Lavage</title>
     <link rel="stylesheet" href="commandes.css">
+    <link rel="stylesheet" href="responsive-styles.css">
+    <link rel="stylesheet" href="commandes-responsive.css">
 </head>
 <body>
     <div class="container">
@@ -105,8 +107,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="dateCollecte">Date de collecte <span class="required">*</span></label>
-                    <input type="date" id="dateCollecte" name="dateCollecte" min="2026-01-01" max="2027-12-31" required>
+                  <label for="dateCollecte">Date de collecte <span class="required">*</span></label>
+                  <input type="date" id="dateCollecte" name="dateCollecte" required>
                 </div>
 
                 <div class="form-group">
@@ -126,8 +128,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="dateLivraison">Date de livraison <span class="required">*</span></label>
-                    <input type="date" id="dateLivraison" name="dateLivraison" min="2026-01-01" max="2027-12-31" required>
+                  <label for="dateLivraison">Date de livraison <span class="required">*</span></label>
+                  <input type="date" id="dateLivraison" name="dateLivraison" required>
                 </div>
             </section>
 
@@ -281,44 +283,37 @@
                 
                 <div class="prix-ligne">
                     <label>Prix lavage :</label>
-                    <span id="prixLavageOutput">0</span>
-                    <span>FCFA</span>
+                    <span><span id="prixLavageOutput">0</span> FCFA</span>
                 </div>
 
-                <div class="prix-ligne" id="reductionFidelite" style="display: none; color: green;">
+                <div class="prix-ligne" id="reductionFidelite" style="display: none;">
                     <label>🎁 Réduction fidélité :</label>
-                    <span>0</span>
-                    <span>FCFA</span>
+                    <span><span>0</span> FCFA</span>
                 </div>
 
                 <div class="prix-ligne">
                     <label>Prix séchage :</label>
-                    <span id="prixSechageOutput">0</span>
-                    <span>FCFA</span>
+                    <span><span id="prixSechageOutput">0</span> FCFA</span>
                 </div>
 
                 <div class="prix-ligne">
                     <label>Prix pliage :</label>
-                    <span id="prixPliageOutput">0</span>
-                    <span>FCFA</span>
+                    <span><span id="prixPliageOutput">0</span> FCFA</span>
                 </div>
 
                 <div class="prix-ligne">
                     <label>Prix repassage :</label>
-                    <span id="prixRepassageOutput">0</span>
-                    <span>FCFA</span>
+                    <span><span id="prixRepassageOutput">0</span> FCFA</span>
                 </div>
 
                 <div class="prix-ligne">
                     <label>Prix collecte/livraison :</label>
-                    <span id="prixCollecteOutput">0</span>
-                    <span>FCFA</span>
+                    <span><span id="prixCollecteOutput">0</span> FCFA</span>
                 </div>
 
                 <div class="prix-ligne total">
                     <label><strong>Total à payer :</strong></label>
-                    <span id="totalPayerOutput">0</span>
-                    <span><strong>FCFA</strong></span>
+                    <span><strong><span id="totalPayerOutput">0</span> FCFA</strong></span>
                 </div>
             </section>
 

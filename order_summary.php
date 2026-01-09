@@ -1,7 +1,7 @@
 <?php
 /**
- * Page de récapitulatif de commande
- * Affiche TOUS les détails de la commande après paiement
+ * Page de récapitulatif de commande - VERSION COMPLÈTE
+ * Affiche TOUS les détails financiers de la commande
  */
 
 session_start();
@@ -144,8 +144,55 @@ try {
             color: #1976d2;
         }
 
+        .financial-details {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border: 2px solid #667eea;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        .financial-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            margin-bottom: 12px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+
+        .financial-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .financial-item .label {
+            font-size: 16px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .financial-item .value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .financial-item.reduction {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
+        .financial-item.reduction .label,
+        .financial-item.reduction .value {
+            color: #155724;
+        }
+
         .total-box {
-            background: #e3f2fd;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
             border-radius: 10px;
             display: flex;
@@ -153,7 +200,9 @@ try {
             align-items: center;
             font-size: 20px;
             font-weight: bold;
-            color: #667eea;
+            color: white;
+            margin-top: 15px;
+            border: none;
         }
 
         .btn-container {
@@ -245,6 +294,41 @@ try {
         .poids-item .prix {
             font-size: 13px;
             color: #6c757d;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 20px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .financial-details {
+                padding: 15px;
+            }
+
+            .financial-item {
+                padding: 12px 15px;
+            }
+
+            .financial-item .label {
+                font-size: 14px;
+            }
+
+            .financial-item .value {
+                font-size: 16px;
+            }
+
+            .total-box {
+                font-size: 18px;
+                padding: 15px;
+            }
+
+            .btn-container {
+                flex-direction: column;
+            }
         }
 
         @media print {
@@ -351,8 +435,12 @@ try {
                         <div class="info-value"><?= htmlspecialchars($order['delivery_address']) ?></div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">Commune</div>
-                        <div class="info-value"><?= htmlspecialchars($orderDetails['commune'] ?? 'Non spécifié') ?></div>
+                        <div class="info-label">Commune collecte</div>
+                        <div class="info-value"><?= htmlspecialchars($orderDetails['communeCollecte'] ?? 'Non spécifié') ?></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Commune livraison</div>
+                        <div class="info-value"><?= htmlspecialchars($orderDetails['communeLivraison'] ?? 'Non spécifié') ?></div>
                     </div>
                 </div>
             </div>
@@ -377,29 +465,56 @@ try {
             </div>
 
             <div class="section">
-                <h2><i class="fas fa-dollar-sign"></i> Détails financiers</h2>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Prix lavage</div>
-                        <div class="info-value"><?= number_format($orderDetails['prixLavage'], 0, ',', ' ') ?> FCFA</div>
+                <h2><i class="fas fa-dollar-sign"></i> Détails financiers complets</h2>
+                
+                <div class="financial-details">
+                    <div class="financial-item">
+                        <span class="label">Prix lavage</span>
+                        <span class="value"><?= number_format($order['washing_price'], 0, ',', ' ') ?> FCFA</span>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Prix collecte/livraison</div>
-                        <div class="info-value"><?= number_format($orderDetails['prixCollecte'], 0, ',', ' ') ?> FCFA</div>
+
+                    <?php if ($order['loyalty_discount'] > 0): ?>
+                    <div class="financial-item reduction">
+                        <span class="label">🎁 Réduction fidélité</span>
+                        <span class="value">-<?= number_format($order['loyalty_discount'], 0, ',', ' ') ?> FCFA</span>
                     </div>
+                    <?php endif; ?>
+
+                    <div class="financial-item">
+                        <span class="label">Prix séchage</span>
+                        <span class="value"><?= number_format($order['drying_price'], 0, ',', ' ') ?> FCFA</span>
+                    </div>
+
+                    <div class="financial-item">
+                        <span class="label">Prix pliage</span>
+                        <span class="value"><?= number_format($order['folding_price'], 0, ',', ' ') ?> FCFA</span>
+                    </div>
+
+                    <div class="financial-item">
+                        <span class="label">Prix repassage</span>
+                        <span class="value"><?= number_format($order['ironing_price'], 0, ',', ' ') ?> FCFA</span>
+                    </div>
+
+                    <div class="financial-item">
+                        <span class="label">Prix collecte/livraison</span>
+                        <span class="value"><?= number_format($order['delivery_price'], 0, ',', ' ') ?> FCFA</span>
+                    </div>
+
+                    <div class="total-box">
+                        <span>Total payé</span>
+                        <span><?= number_format($order['total_amount'], 0, ',', ' ') ?> FCFA</span>
+                    </div>
+                </div>
+
+                <div class="info-grid" style="margin-top: 20px;">
                     <div class="info-item">
                         <div class="info-label">Moyen de paiement</div>
-                        <div class="info-value"><?= htmlspecialchars($orderDetails['moyenPaiement']) ?></div>
+                        <div class="info-value"><?= htmlspecialchars($orderDetails['moyenPaiement'] ?? 'Non spécifié') ?></div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">N° Transaction</div>
                         <div class="info-value"><?= htmlspecialchars($order['transaction_id'] ?? 'En attente') ?></div>
                     </div>
-                </div>
-                
-                <div class="total-box" style="margin-top: 20px;">
-                    <span>Total payé</span>
-                    <span><?= number_format($order['total_amount'], 0, ',', ' ') ?> FCFA</span>
                 </div>
             </div>
 

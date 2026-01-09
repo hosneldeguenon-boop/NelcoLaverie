@@ -1,9 +1,7 @@
 <?php
 /**
- * Script de connexion administrateur - VERSION ROBUSTE
+ * Script de traitement de connexion administrateur
  * Fichier: admin_login_process.php
- * 
- * Ce fichier DOIT être à la RACINE du projet
  */
 
 session_start();
@@ -37,7 +35,7 @@ try {
     // ===== ÉTAPE 1: Récupérer les données =====
     
     $json = file_get_contents('php://input');
-    error_log('JSON reçu');
+    error_log('JSON reçu: ' . $json);
     
     if (empty($json)) {
         throw new Exception('Aucune donnée reçue');
@@ -63,7 +61,7 @@ try {
     // ===== ÉTAPE 3: Connexion BD =====
     
     if (!file_exists('config.php')) {
-        throw new Exception('config.php non trouvé');
+        throw new Exception('Fichier config.php non trouvé');
     }
     
     require_once 'config.php';
@@ -73,6 +71,8 @@ try {
     if (!$conn) {
         throw new Exception('Erreur de connexion à la base de données');
     }
+    
+    error_log('Connexion BD établie');
     
     // ===== ÉTAPE 4: Récupérer l'admin =====
     
@@ -84,17 +84,19 @@ try {
     ");
     
     if (!$stmt) {
-        throw new Exception('Erreur de requête');
+        throw new Exception('Erreur de préparation de la requête');
     }
     
     $stmt->execute([':username' => $username]);
     
     if ($stmt->rowCount() === 0) {
         error_log('Admin non trouvé: ' . $username);
-        throw new Exception('Pseudonyme ou mot de passe incorrect');
+        // Message générique pour éviter l'énumération des comptes
+        throw new Exception('Identifiants incorrects');
     }
     
     $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+    error_log('Admin trouvé - ID: ' . $admin['id'] . ' - Status: ' . $admin['status']);
     
     // ===== ÉTAPE 5: Vérifier le statut =====
     
@@ -108,19 +110,27 @@ try {
     
     // ===== ÉTAPE 6: Vérifier le mot de passe =====
     
+    error_log('Vérification du mot de passe...');
+    
     if (!password_verify($password, $admin['password'])) {
         error_log('Mot de passe incorrect pour: ' . $username);
-        throw new Exception('Pseudonyme ou mot de passe incorrect');
+        // Message générique pour éviter l'énumération des comptes
+        throw new Exception('Identifiants incorrects');
     }
     
     error_log('Mot de passe vérifié OK');
     
-    // ===== ÉTAPE 7: Mettre à jour last_login =====
+    // ===== ÉTAPE 7: Mettre à jour updated_at =====
     
     $updateStmt = $conn->prepare("UPDATE admins SET updated_at = NOW() WHERE id = :id");
     $updateStmt->execute([':id' => $admin['id']]);
     
+    error_log('Timestamp mis à jour');
+    
     // ===== ÉTAPE 8: Créer la session =====
+    
+    // Régénérer l'ID de session pour éviter la fixation de session
+    session_regenerate_id(true);
     
     $_SESSION['admin_id'] = $admin['id'];
     $_SESSION['admin_username'] = $admin['username'];
@@ -128,8 +138,9 @@ try {
     $_SESSION['admin_lastname'] = $admin['lastname'];
     $_SESSION['admin_email'] = $admin['email'];
     $_SESSION['admin_logged_in'] = true;
+    $_SESSION['admin_login_time'] = time();
     
-    error_log('Session créée pour admin: ' . $username);
+    error_log('Session créée pour admin: ' . $username . ' (ID: ' . session_id() . ')');
     
     // ===== ÉTAPE 9: Retourner le succès =====
     
@@ -146,7 +157,7 @@ try {
         ]
     ]);
     
-    error_log('Connexion réussie: ' . $username);
+    error_log('=== Connexion réussie pour: ' . $username . ' ===');
 
 } catch (Exception $e) {
     error_log('EXCEPTION: ' . $e->getMessage());
@@ -161,15 +172,15 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Erreur base de données'
+        'message' => 'Erreur de connexion à la base de données'
     ]);
     
 } catch (Throwable $e) {
-    error_log('FATAL: ' . $e->getMessage());
+    error_log('FATAL ERROR: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Erreur serveur'
+        'message' => 'Erreur serveur inattendue'
     ]);
 }
 ?>

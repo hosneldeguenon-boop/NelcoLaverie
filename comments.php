@@ -356,7 +356,7 @@
 <body>
     <div class="navbar">
         <h1><i class="fas fa-comments"></i> Commentaires Clients</h1>
-        <a href="acceuil.php">← Retour</a>
+        <a href="index.html">← Retour</a>
     </div>
 
     <div class="container">

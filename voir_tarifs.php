@@ -98,7 +98,7 @@
 
     </section>
     <div class="hero-buttons">
-                <a href="acceuil.php" class="btn btn-secondary">Retourner à l'acceuil</a>
+                <a href="index.html" class="btn btn-secondary">Retourner à l'acceuil</a>
             </div>
 
 </body>

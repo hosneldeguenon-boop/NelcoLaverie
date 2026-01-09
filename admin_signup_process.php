@@ -1,60 +1,64 @@
 <?php
 /**
- * Script d'inscription administrateur - VERSION ROBUSTE
- * Fichier: admin_signup_process.php
- * 
- * Ce fichier DOIT être à la RACINE du projet au même niveau que admin_signup.php
+ * Traitement de l'inscription administrateur
  */
 
-// Démarrer les logs
+session_start();
+
 error_reporting(E_ALL);
-ini_set('display_errors', '0'); // Ne pas afficher les erreurs (retourner du JSON)
+ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
-// Headers JSON (TRÈS IMPORTANT)
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Traiter les requêtes OPTIONS (CORS preflight)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
 
 error_log('=== admin_signup_process.php APPELÉ ===');
-error_log('Méthode: ' . $_SERVER['REQUEST_METHOD']);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode([
         'success' => false,
-        'message' => 'Méthode non autorisée. Utilisez POST.'
+        'message' => 'Méthode non autorisée'
     ]);
     exit;
 }
 
 try {
-    // ===== ÉTAPE 1: Récupérer et valider les données =====
+    // Vérifier l'autorisation d'inscription
+    if (!isset($_SESSION['admin_signup_authorized']) || $_SESSION['admin_signup_authorized'] !== true) {
+        error_log('Tentative d\'inscription sans autorisation');
+        throw new Exception('Accès non autorisé. Code requis.');
+    }
     
+    // Vérifier le timeout de l'autorisation (10 minutes)
+    if (isset($_SESSION['admin_signup_timestamp']) && (time() - $_SESSION['admin_signup_timestamp'] > 600)) {
+        unset($_SESSION['admin_signup_authorized']);
+        unset($_SESSION['admin_signup_code_id']);
+        unset($_SESSION['admin_signup_timestamp']);
+        throw new Exception('Session d\'inscription expirée. Veuillez recommencer.');
+    }
+    
+    // Récupérer les données
     $json = file_get_contents('php://input');
-    error_log('JSON brut reçu: ' . substr($json, 0, 100) . '...');
     
     if (empty($json)) {
-        throw new Exception('Aucune donnée reçue (JSON vide)');
+        throw new Exception('Aucune donnée reçue');
     }
     
     $data = json_decode($json, true);
     
     if ($data === null) {
-        error_log('Erreur décodage JSON: ' . json_last_error_msg());
-        throw new Exception('Erreur de décodage JSON: ' . json_last_error_msg());
+        throw new Exception('Erreur de décodage JSON');
     }
     
-    error_log('Données décodées: ' . print_r($data, true));
-    
-    // Récupération sécurisée des données
+    // Récupération et nettoyage des données
     $lastname = trim($data['lastname'] ?? '');
     $firstname = trim($data['firstname'] ?? '');
     $username = trim($data['username'] ?? '');
@@ -63,34 +67,12 @@ try {
     $gender = trim($data['gender'] ?? '');
     $password = $data['password'] ?? '';
     
-    // ===== ÉTAPE 2: Validation des données =====
+    error_log("Tentative inscription: $username / $email");
     
-    if (empty($lastname)) {
-        throw new Exception('Le nom est obligatoire');
-    }
-    
-    if (empty($firstname)) {
-        throw new Exception('Le prénom est obligatoire');
-    }
-    
-    if (empty($username)) {
-        throw new Exception('Le pseudonyme est obligatoire');
-    }
-    
-    if (empty($email)) {
-        throw new Exception('L\'email est obligatoire');
-    }
-    
-    if (empty($phone)) {
-        throw new Exception('Le téléphone est obligatoire');
-    }
-    
-    if (empty($gender)) {
-        throw new Exception('Le sexe est obligatoire');
-    }
-    
-    if (empty($password)) {
-        throw new Exception('Le mot de passe est obligatoire');
+    // Validations
+    if (empty($lastname) || empty($firstname) || empty($username) || empty($email) || 
+        empty($phone) || empty($gender) || empty($password)) {
+        throw new Exception('Tous les champs sont obligatoires');
     }
     
     if (strlen($password) < 8) {
@@ -106,32 +88,41 @@ try {
         throw new Exception('Numéro de téléphone invalide (minimum 10 chiffres)');
     }
     
-    if (!in_array($gender, ['M', 'F', 'Autre'])) {
+    if (!in_array($gender, ['M', 'F'])) {
         throw new Exception('Valeur de sexe invalide');
     }
     
-    error_log('Validation réussie');
+    error_log('Validations OK');
     
-    // ===== ÉTAPE 3: Connexion à la BD =====
-    
-    if (!file_exists('configs.php')) {
-        throw new Exception('Erreur: config.php non trouvé');
-    }
-    
-    require_once 'configs.php';
-    
+    // Connexion à la base de données
+    require_once 'config.php';
     $conn = getDBConnection();
     
-    if (!$conn) {
-        throw new Exception('Erreur de connexion à la base de données');
-    }
+    // Créer la table admins si elle n'existe pas
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS admins (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            lastname VARCHAR(100) NOT NULL,
+            firstname VARCHAR(100) NOT NULL,
+            username VARCHAR(50) UNIQUE NOT NULL,
+            email VARCHAR(150) UNIQUE NOT NULL,
+            phone VARCHAR(20) NOT NULL,
+            gender ENUM('M', 'F') NOT NULL,
+            password VARCHAR(255) NOT NULL,
+            status ENUM('actif', 'inactif', 'suspendu') DEFAULT 'actif',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_username (username),
+            INDEX idx_email (email),
+            INDEX idx_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
     
-    error_log('Connexion BD réussie');
+    error_log('Table admins vérifiée/créée');
     
-    // ===== ÉTAPE 4: Vérifier l'unicité du pseudo et email =====
-    
+    // Vérifier l'unicité du username et email
     $checkStmt = $conn->prepare("
-        SELECT id FROM admins 
+        SELECT id, username, email FROM admins 
         WHERE username = :username OR email = :email
         LIMIT 1
     ");
@@ -142,28 +133,32 @@ try {
     ]);
     
     if ($checkStmt->rowCount() > 0) {
-        throw new Exception('Le pseudonyme ou l\'email existe déjà');
+        $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        if ($existing['username'] === $username) {
+            throw new Exception('Ce pseudonyme est déjà utilisé');
+        }
+        if ($existing['email'] === $email) {
+            throw new Exception('Cet email est déjà utilisé');
+        }
     }
     
-    error_log('Pseudo/email uniques OK');
+    error_log('Username/Email uniques OK');
     
-    // ===== ÉTAPE 5: Hasher le mot de passe =====
-    
-    $hashedPassword = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+    // Hasher le mot de passe
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
     
     if (!$hashedPassword) {
         throw new Exception('Erreur lors du hashage du mot de passe');
     }
     
-    error_log('Hash généré OK');
+    error_log('Mot de passe hashé OK');
     
-    // ===== ÉTAPE 6: Insérer en BD =====
-    
+    // Insérer l'administrateur
     $insertStmt = $conn->prepare("
         INSERT INTO admins 
         (lastname, firstname, username, email, phone, gender, password, status, created_at, updated_at)
         VALUES 
-        (:lastname, :firstname, :username, :email, :phone, :gender, :password, :status, NOW(), NOW())
+        (:lastname, :firstname, :username, :email, :phone, :gender, :password, 'actif', NOW(), NOW())
     ");
     
     $result = $insertStmt->execute([
@@ -171,27 +166,32 @@ try {
         ':firstname' => $firstname,
         ':username' => $username,
         ':email' => $email,
-        ':phone' => $phone,
+        ':phone' => $phone_clean,
         ':gender' => $gender,
-        ':password' => $hashedPassword,
-        ':status' => 'actif'
+        ':password' => $hashedPassword
     ]);
     
     if (!$result) {
         $errorInfo = $insertStmt->errorInfo();
         error_log('Erreur SQL: ' . $errorInfo[2]);
-        throw new Exception('Erreur lors de l\'enregistrement: ' . $errorInfo[2]);
+        throw new Exception('Erreur lors de l\'enregistrement');
     }
     
-    error_log('Admin inséré en BD avec succès: ' . $username);
+    $adminId = $conn->lastInsertId();
     
-    // ===== ÉTAPE 7: Retourner le succès =====
+    error_log("Admin créé avec succès: ID=$adminId, Username=$username");
     
+    // Nettoyer l'autorisation d'inscription
+    unset($_SESSION['admin_signup_authorized']);
+    unset($_SESSION['admin_signup_code_id']);
+    unset($_SESSION['admin_signup_timestamp']);
+    
+    // Retourner le succès
     http_response_code(200);
     echo json_encode([
         'success' => true,
-        'message' => 'Inscription réussie ! Redirection vers la connexion...',
-        'admin_id' => $conn->lastInsertId()
+        'message' => 'Compte administrateur créé avec succès !',
+        'admin_id' => $adminId
     ]);
     
     error_log('=== Inscription admin réussie ===');
@@ -209,7 +209,7 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Erreur base de données: ' . $e->getMessage()
+        'message' => 'Erreur de base de données'
     ]);
     
 } catch (Throwable $e) {
@@ -217,7 +217,7 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Erreur serveur: ' . $e->getMessage()
+        'message' => 'Erreur serveur'
     ]);
 }
 ?>

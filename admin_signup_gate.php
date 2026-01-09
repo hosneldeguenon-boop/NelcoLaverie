@@ -1,27 +1,29 @@
 <?php
 /**
- * Page de connexion administrateur
+ * Page de vérification du code d'accès pour l'inscription admin
+ * Un code secret doit être entré avant d'accéder au formulaire d'inscription
  */
 
 session_start();
 
-// Si déjà connecté, rediriger vers le dashboard
+// Si déjà un code valide en session, rediriger vers l'inscription
+if (isset($_SESSION['admin_signup_authorized']) && $_SESSION['admin_signup_authorized'] === true) {
+    header("Location: admin_signup.php");
+    exit();
+}
+
+// Si déjà connecté comme admin, rediriger vers le dashboard
 if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
     header("Location: admin_dashboard.php");
     exit();
 }
-
-// Empêcher le cache de cette page
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
 ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion Administrateur - Nelco Laverie</title>
+    <title>Accès Inscription Admin - Nelco Laverie</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
@@ -42,7 +44,7 @@ header("Pragma: no-cache");
             padding: 20px;
         }
 
-        .login-container {
+        .gate-container {
             background: white;
             padding: 40px;
             border-radius: 20px;
@@ -63,12 +65,12 @@ header("Pragma: no-cache");
             }
         }
 
-        .login-header {
+        .gate-header {
             text-align: center;
             margin-bottom: 30px;
         }
 
-        .login-header .logo {
+        .gate-header .logo {
             width: 80px;
             height: 80px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -79,20 +81,21 @@ header("Pragma: no-cache");
             margin: 0 auto 20px;
         }
 
-        .login-header .logo i {
+        .gate-header .logo i {
             font-size: 40px;
             color: white;
         }
 
-        .login-header h1 {
+        .gate-header h1 {
             color: #333;
             font-size: 24px;
             margin-bottom: 8px;
         }
 
-        .login-header p {
+        .gate-header p {
             color: #666;
             font-size: 14px;
+            line-height: 1.6;
         }
 
         .alert {
@@ -130,12 +133,6 @@ header("Pragma: no-cache");
             border: 1px solid #cfc;
         }
 
-        .alert-info {
-            background: #fef7e0;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-
         .form-group {
             margin-bottom: 20px;
         }
@@ -165,7 +162,9 @@ header("Pragma: no-cache");
             padding: 12px 15px 12px 45px;
             border: 2px solid #e5e7eb;
             border-radius: 10px;
-            font-size: 15px;
+            font-size: 18px;
+            letter-spacing: 3px;
+            text-align: center;
             transition: all 0.3s;
         }
 
@@ -180,21 +179,7 @@ header("Pragma: no-cache");
             cursor: not-allowed;
         }
 
-        .password-toggle {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #999;
-            cursor: pointer;
-            transition: color 0.3s;
-        }
-
-        .password-toggle:hover {
-            color: #667eea;
-        }
-
-        .btn-login {
+        .btn-verify {
             width: 100%;
             padding: 14px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -211,12 +196,12 @@ header("Pragma: no-cache");
             gap: 10px;
         }
 
-        .btn-login:hover:not(:disabled) {
+        .btn-verify:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(102,126,234,0.4);
         }
 
-        .btn-login:disabled {
+        .btn-verify:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
@@ -236,12 +221,12 @@ header("Pragma: no-cache");
             100% { transform: rotate(360deg); }
         }
 
-        .links {
+        .back-link {
             text-align: center;
             margin-top: 20px;
         }
 
-        .links a {
+        .back-link a {
             color: #667eea;
             text-decoration: none;
             font-size: 14px;
@@ -249,173 +234,141 @@ header("Pragma: no-cache");
             align-items: center;
             gap: 5px;
             transition: all 0.3s;
-            margin: 0 10px;
         }
 
-        .links a:hover {
+        .back-link a:hover {
             gap: 8px;
         }
 
-        .divider {
-            margin: 15px 0;
-            text-align: center;
-            color: #999;
-            font-size: 14px;
+        .info-box {
+            background: #f0f9ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #1e40af;
+            line-height: 1.6;
+        }
+
+        .info-box i {
+            margin-right: 5px;
         }
     </style>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="admin-responsive.css">
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-header">
+    <div class="gate-container">
+        <div class="gate-header">
             <div class="logo">
-                <i class="fas fa-shield-alt"></i>
+                <i class="fas fa-key"></i>
             </div>
-            <h1>Espace Administrateur</h1>
-            <p>Nelco Laverie</p>
+            <h1>Code d'Accès Requis</h1>
+            <p>Entrez le code d'autorisation pour créer un compte administrateur</p>
+        </div>
+
+        <div class="info-box">
+            <i class="fas fa-info-circle"></i>
+            Ce code est délivré uniquement aux personnes autorisées à gérer le système.
         </div>
 
         <div id="alertMessage" class="alert"></div>
 
-        <form id="loginForm">
+        <form id="gateForm">
             <div class="form-group">
-                <label for="username">
-                    <i class="fas fa-user"></i> Nom d'utilisateur
-                </label>
-                <div class="input-wrapper">
-                    <i class="fas fa-user"></i>
-                    <input 
-                        type="text" 
-                        id="username" 
-                        name="username" 
-                        required 
-                        autofocus
-                        autocomplete="username"
-                        placeholder="Entrez votre pseudonyme"
-                    >
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="password">
-                    <i class="fas fa-lock"></i> Mot de passe
+                <label for="accessCode">
+                    <i class="fas fa-shield-alt"></i> Code d'Autorisation (10 chiffres)
                 </label>
                 <div class="input-wrapper">
                     <i class="fas fa-lock"></i>
                     <input 
-                        type="password" 
-                        id="password" 
-                        name="password" 
-                        required
-                        autocomplete="current-password"
-                        placeholder="Entrez votre mot de passe"
+                        type="text" 
+                        id="accessCode" 
+                        name="accessCode" 
+                        required 
+                        autofocus
+                        maxlength="10"
+                        pattern="[0-9]{10}"
+                        placeholder="0000000000"
+                        inputmode="numeric"
                     >
-                    <i class="fas fa-eye-slash password-toggle" id="togglePassword"></i>
                 </div>
             </div>
 
-            <button type="submit" class="btn-login" id="loginBtn">
-                <span id="btnText">Se connecter</span>
+            <button type="submit" class="btn-verify" id="verifyBtn">
+                <span id="btnText">Vérifier le Code</span>
                 <i class="fas fa-arrow-right" id="btnIcon"></i>
             </button>
         </form>
 
-        <div class="divider">ou</div>
-
-        <div class="links">
-            <a href="admin_signup_gate.php">
-                <i class="fas fa-user-plus"></i>
-                Créer un compte
-            </a>
-            <a href="index.html">
+        <div class="back-link">
+            <a href="admin_login.php">
                 <i class="fas fa-arrow-left"></i>
-                Retour à l'accueil
+                Retour à la connexion
             </a>
         </div>
     </div>
 
     <script>
-        // Toggle password visibility
-        document.getElementById('togglePassword').addEventListener('click', function() {
-            const passwordInput = document.getElementById('password');
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-            this.classList.toggle('fa-eye-slash');
-            this.classList.toggle('fa-eye');
+        // Auto-format : accepter seulement les chiffres
+        document.getElementById('accessCode').addEventListener('input', function(e) {
+            this.value = this.value.replace(/\D/g, '');
         });
 
-        // Vérifier les paramètres URL au chargement
-        window.addEventListener('DOMContentLoaded', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            
-            if (urlParams.get('logout') === 'success') {
-                showAlert('Vous avez été déconnecté avec succès', 'success');
-            }
-            
-            if (urlParams.get('timeout') === '1') {
-                showAlert('Votre session a expiré. Veuillez vous reconnecter.', 'info');
-            }
-
-            if (urlParams.get('registered') === '1') {
-                showAlert('Compte créé avec succès ! Vous pouvez maintenant vous connecter.', 'success');
-            }
-        });
-
-        // Gestion du formulaire de connexion
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        // Gestion du formulaire
+        document.getElementById('gateForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            const loginBtn = document.getElementById('loginBtn');
+            const accessCode = document.getElementById('accessCode').value.trim();
+            const verifyBtn = document.getElementById('verifyBtn');
             const btnText = document.getElementById('btnText');
             const btnIcon = document.getElementById('btnIcon');
             
             // Validation
-            if (!username || !password) {
-                showAlert('Veuillez remplir tous les champs', 'error');
+            if (accessCode.length !== 10) {
+                showAlert('Le code doit contenir exactement 10 chiffres', 'error');
                 return;
             }
             
             // Désactiver le bouton et afficher le spinner
-            loginBtn.disabled = true;
-            btnText.textContent = 'Connexion...';
+            verifyBtn.disabled = true;
+            btnText.textContent = 'Vérification...';
             btnIcon.className = 'spinner';
             
             try {
-                const response = await fetch('admin_login_process.php', {
+                const response = await fetch('verify_admin_code.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        username: username,
-                        password: password
+                        access_code: accessCode
                     })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlert('Connexion réussie ! Redirection...', 'success');
+                    showAlert('Code validé ! Redirection...', 'success');
                     setTimeout(() => {
-                        window.location.href = 'admin_dashboard.php';
+                        window.location.href = 'admin_signup.php';
                     }, 1000);
                 } else {
-                    showAlert(data.message || 'Erreur de connexion', 'error');
+                    showAlert(data.message || 'Code incorrect', 'error');
                     // Réactiver le bouton
-                    loginBtn.disabled = false;
-                    btnText.textContent = 'Se connecter';
+                    verifyBtn.disabled = false;
+                    btnText.textContent = 'Vérifier le Code';
                     btnIcon.className = 'fas fa-arrow-right';
+                    // Réinitialiser le champ
+                    document.getElementById('accessCode').value = '';
+                    document.getElementById('accessCode').focus();
                 }
                 
             } catch (error) {
                 console.error('Erreur:', error);
                 showAlert('Erreur de connexion au serveur', 'error');
                 // Réactiver le bouton
-                loginBtn.disabled = false;
-                btnText.textContent = 'Se connecter';
+                verifyBtn.disabled = false;
+                btnText.textContent = 'Vérifier le Code';
                 btnIcon.className = 'fas fa-arrow-right';
             }
         });
