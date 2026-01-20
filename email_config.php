@@ -8,31 +8,24 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
 
-// Si vous n'avez pas PHPMailer, installez-le avec: composer require phpmailer/phpmailer
-// Ou téléchargez-le depuis: https://github.com/PHPMailer/PHPMailer
-require_once 'vendor/autoload.php'; // Ajustez le chemin selon votre installation
+require_once 'vendor/autoload.php';
 
 /**
- * Configuration SMTP - MODIFIEZ CES VALEURS SELON VOTRE SERVEUR
+ * Configuration SMTP
  */
-define('SMTP_HOST', 'smtp.gmail.com');  // Serveur SMTP (Gmail, Outlook, etc.)
-define('SMTP_PORT', 587);                // Port SMTP (587 pour TLS, 465 pour SSL)
-define('SMTP_USERNAME', 'hosneldeguenon@gmail.com'); // Votre email
-define('SMTP_PASSWORD', 'vmdg xivb sicm wjny'); // Mot de passe d'application
-define('SMTP_FROM_EMAIL', 'hosneldeguenon@gmail.com'); // Email expéditeur
-define('SMTP_FROM_NAME', 'NelcoLaverie'); // Nom de l'expéditeur
+define('SMTP_HOST', 'smtp.gmail.com');
+define('SMTP_PORT', 587);
+define('SMTP_USERNAME', 'hosneldeguenon@gmail.com');
+define('SMTP_PASSWORD', 'vmdg xivb sicm wjny');
+define('SMTP_FROM_EMAIL', 'hosneldeguenon@gmail.com');
+define('SMTP_FROM_NAME', 'NelcoLaverie');
 
 /**
  * Envoie un code de réinitialisation par email
- * 
- * @param string $toEmail Email du destinataire
- * @param string $toName Prénom du destinataire
- * @param string $code Code à 6 chiffres
- * @return bool True si l'email est envoyé, False sinon
  */
 function sendResetCode($toEmail, $toName, $code) {
     try {
-        error_log("📧 Tentative d'envoi email à: $toEmail");
+        error_log("📧 Tentative d'envoi email à : $toEmail");
         
         $mail = new PHPMailer(true);
         
@@ -46,7 +39,6 @@ function sendResetCode($toEmail, $toName, $code) {
         $mail->Port = SMTP_PORT;
         $mail->CharSet = 'UTF-8';
         
-        // Désactiver la vérification SSL en développement (à retirer en production)
         $mail->SMTPOptions = array(
             'ssl' => array(
                 'verify_peer' => false,
@@ -64,7 +56,6 @@ function sendResetCode($toEmail, $toName, $code) {
         $mail->isHTML(true);
         $mail->Subject = 'Code de réinitialisation de mot de passe';
         
-        // Corps de l'email en HTML
         $mail->Body = '
         <!DOCTYPE html>
         <html>
@@ -97,7 +88,7 @@ function sendResetCode($toEmail, $toName, $code) {
                     <p><strong>Ce code est valable pendant 30 minutes.</strong></p>
                     
                     <div class="warning">
-                        <strong>⚠️ Important :</strong> Si vous n\'avez pas demandé cette réinitialisation, ignorez cet email. Votre mot de passe actuel reste sécurisé.
+                        <strong>⚠️ Important :</strong> Si vous n\'avez pas demandé cette réinitialisation, ignorez cet email.
                     </div>
                     
                     <p>Cordialement,<br>L\'équipe ' . SMTP_FROM_NAME . '</p>
@@ -110,17 +101,14 @@ function sendResetCode($toEmail, $toName, $code) {
         </html>
         ';
         
-        // Version texte alternatif
         $mail->AltBody = "Bonjour $toName,\n\n"
                        . "Votre code de réinitialisation : $code\n\n"
                        . "Ce code est valable pendant 30 minutes.\n\n"
-                       . "Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.\n\n"
                        . "Cordialement,\nL'équipe " . SMTP_FROM_NAME;
         
-        // Envoyer l'email
         $mail->send();
         
-        error_log("✅ Email envoyé avec succès à: $toEmail");
+        error_log("✅ Email envoyé avec succès à : $toEmail");
         return true;
         
     } catch (Exception $e) {
@@ -131,39 +119,117 @@ function sendResetCode($toEmail, $toName, $code) {
 }
 
 /**
- * ALTERNATIVE : Fonction simple avec mail() de PHP (moins fiable)
- * Décommentez cette fonction si vous ne pouvez pas utiliser PHPMailer
+ * Envoie un email de vérification d'inscription
  */
-/*
-function sendResetCode($toEmail, $toName, $code) {
+function sendVerificationEmail($toEmail, $toName, $verificationLink) {
     try {
-        error_log("📧 Envoi email simple à: $toEmail");
+        error_log("📧 Envoi email de vérification à : $toEmail");
         
-        $subject = "Code de réinitialisation de mot de passe";
+        $mail = new PHPMailer(true);
         
-        $message = "Bonjour $toName,\n\n";
-        $message .= "Votre code de réinitialisation : $code\n\n";
-        $message .= "Ce code est valable pendant 30 minutes.\n\n";
-        $message .= "Cordialement,\nL'équipe";
+        // Configuration SMTP
+        $mail->isSMTP();
+        $mail->Host = SMTP_HOST;
+        $mail->SMTPAuth = true;
+        $mail->Username = SMTP_USERNAME;
+        $mail->Password = SMTP_PASSWORD;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = SMTP_PORT;
+        $mail->CharSet = 'UTF-8';
         
-        $headers = "From: " . SMTP_FROM_EMAIL . "\r\n";
-        $headers .= "Reply-To: " . SMTP_FROM_EMAIL . "\r\n";
-        $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+        $mail->SMTPOptions = array(
+            'ssl' => array(
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            )
+        );
         
-        $result = mail($toEmail, $subject, $message, $headers);
+        // Expéditeur et destinataire
+        $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+        $mail->addAddress($toEmail, $toName);
+        $mail->addReplyTo(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
         
-        if ($result) {
-            error_log("✅ Email envoyé avec succès");
-            return true;
-        } else {
-            error_log("❌ Échec de l'envoi de l'email");
-            return false;
-        }
+        // Contenu de l'email
+        $mail->isHTML(true);
+        $mail->Subject = 'Confirmez votre inscription - ' . SMTP_FROM_NAME;
+        
+        $mail->Body = '
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(90deg, #3b82f6, #60a5fa); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+                .button-container { text-align: center; margin: 30px 0; }
+                .confirm-button { 
+                    display: inline-block;
+                    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+                    color: white;
+                    padding: 15px 40px;
+                    text-decoration: none;
+                    border-radius: 25px;
+                    font-weight: bold;
+                    font-size: 16px;
+                }
+                .info-box { background: #e0f2fe; border-left: 4px solid #0284c7; padding: 15px; margin: 20px 0; border-radius: 5px; }
+                .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🎉 Bienvenue chez ' . SMTP_FROM_NAME . ' !</h1>
+                </div>
+                <div class="content">
+                    <p>Bonjour <strong>' . htmlspecialchars($toName) . '</strong>,</p>
+                    <p>Merci de vous être inscrit(e) chez ' . SMTP_FROM_NAME . ' !</p>
+                    <p>Pour activer votre compte et commencer à profiter de nos services, veuillez confirmer votre adresse email en cliquant sur le bouton ci-dessous :</p>
+                    
+                    <div class="button-container">
+                        <a href="' . $verificationLink . '" class="confirm-button">
+                            ✅ Confirmer mon inscription
+                        </a>
+                    </div>
+                    
+                    <div class="info-box">
+                        <strong>ℹ️ Note :</strong> Ce lien est valable pendant 24 heures.
+                    </div>
+                    
+                    <p>Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :</p>
+                    <p style="word-break: break-all; color: #3b82f6;">' . $verificationLink . '</p>
+                    
+                    <p style="margin-top: 30px;">Si vous n\'avez pas créé de compte, ignorez simplement cet email.</p>
+                    
+                    <p>À bientôt,<br>L\'équipe ' . SMTP_FROM_NAME . '</p>
+                </div>
+                <div class="footer">
+                    <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        ';
+        
+        $mail->AltBody = "Bonjour $toName,\n\n"
+                       . "Merci de vous être inscrit(e) chez " . SMTP_FROM_NAME . " !\n\n"
+                       . "Pour confirmer votre inscription, cliquez sur ce lien :\n"
+                       . "$verificationLink\n\n"
+                       . "Ce lien est valable pendant 24 heures.\n\n"
+                       . "Cordialement,\nL'équipe " . SMTP_FROM_NAME;
+        
+        $mail->send();
+        
+        error_log("✅ Email de vérification envoyé avec succès");
+        return true;
         
     } catch (Exception $e) {
-        error_log("❌ Erreur: " . $e->getMessage());
+        error_log("❌ Erreur envoi email: " . $mail->ErrorInfo);
+        error_log("❌ Exception: " . $e->getMessage());
         return false;
     }
 }
-*/
 ?>
