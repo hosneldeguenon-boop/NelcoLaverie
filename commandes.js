@@ -465,3 +465,51 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+// RESTRICTION DES DATES - À ajouter dans commandes.js ou avant la balise </body>
+
+// Fonction pour obtenir la date du jour au format YYYY-MM-DD
+function getDateAujourdhui() {
+    const aujourd = new Date();
+    const annee = aujourd.getFullYear();
+    const mois = String(aujourd.getMonth() + 1).padStart(2, '0');
+    const jour = String(aujourd.getDate()).padStart(2, '0');
+    return `${annee}-${mois}-${jour}`;
+}
+
+// Initialisation des restrictions de dates
+document.addEventListener('DOMContentLoaded', function() {
+    const dateCollecte = document.getElementById('dateCollecte');
+    const dateLivraison = document.getElementById('dateLivraison');
+    const dateMin = getDateAujourdhui();
+    
+    // Définir la date minimale pour la collecte (aujourd'hui)
+    dateCollecte.min = dateMin;
+    
+    // Définir la date minimale pour la livraison (aujourd'hui)
+    dateLivraison.min = dateMin;
+    
+    // Événement : Quand la date de collecte change
+    dateCollecte.addEventListener('change', function() {
+        const dateCollecteSelectionnee = this.value;
+        
+        // La date de livraison ne peut pas être avant la date de collecte
+        if (dateCollecteSelectionnee) {
+            dateLivraison.min = dateCollecteSelectionnee;
+            
+            // Si une date de livraison est déjà sélectionnée et qu'elle est antérieure
+            // à la nouvelle date de collecte, la réinitialiser
+            if (dateLivraison.value && dateLivraison.value < dateCollecteSelectionnee) {
+                dateLivraison.value = '';
+                alert('La date de livraison a été réinitialisée car elle était antérieure à la nouvelle date de collecte.');
+            }
+        }
+    });
+    
+    // Validation supplémentaire lors de la saisie manuelle
+    dateLivraison.addEventListener('change', function() {
+        if (dateCollecte.value && this.value < dateCollecte.value) {
+            alert('La date de livraison ne peut pas être antérieure à la date de collecte.');
+            this.value = '';
+        }
+    });
+});

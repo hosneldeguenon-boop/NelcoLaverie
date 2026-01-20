@@ -347,11 +347,11 @@ try {
                     <i class="fas fa-users-cog"></i>
                     Voir les utilisateurs
                 </a>
-                <a href="admin_list.php" class="action-btn">
+                <a href="view_admins.php" class="action-btn">
                     <i class="fas fa-user-shield"></i>
                     Liste des admins
                 </a>
-                <a href="acceuil.php" class="action-btn">
+                <a href="index.html" class="action-btn">
                     <i class="fas fa-home"></i>
                     Retour au site
                 </a>

@@ -330,7 +330,7 @@ header("Pragma: no-cache");
             </a>
             <a href="index.html">
                 <i class="fas fa-arrow-left"></i>
-                Retour à l'accueil
+                Retour à l'acceuil
             </a>
         </div>
     </div>

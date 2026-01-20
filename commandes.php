@@ -7,6 +7,152 @@
     <link rel="stylesheet" href="commandes.css">
     <link rel="stylesheet" href="responsive-styles.css">
     <link rel="stylesheet" href="commandes-responsive.css">
+    <script src="commandes.js"></script>
+    <script>
+        // RESTRICTION STRICTE DES DATES
+// À ajouter dans commandes.js ou dans un <script> avant </body>
+
+(function() {
+    'use strict';
+    
+    // Fonction pour obtenir la date du jour au format YYYY-MM-DD
+    function getDateAujourdhui() {
+        const aujourd = new Date();
+        const annee = aujourd.getFullYear();
+        const mois = String(aujourd.getMonth() + 1).padStart(2, '0');
+        const jour = String(aujourd.getDate()).padStart(2, '0');
+        return `${annee}-${mois}-${jour}`;
+    }
+    
+    // Fonction pour désactiver les dates passées (force la validation)
+    function appliquerRestrictionsDates() {
+        const dateCollecte = document.getElementById('dateCollecte');
+        const dateLivraison = document.getElementById('dateLivraison');
+        const dateMin = getDateAujourdhui();
+        
+        if (!dateCollecte || !dateLivraison) {
+            console.error('Champs de date non trouvés');
+            return;
+        }
+        
+        // Définir l'attribut min (bloque la sélection dans le calendrier)
+        dateCollecte.setAttribute('min', dateMin);
+        dateLivraison.setAttribute('min', dateMin);
+        
+        // Événement : validation de la date de collecte
+        dateCollecte.addEventListener('input', function() {
+            const dateSelectionnee = this.value;
+            
+            if (dateSelectionnee && dateSelectionnee < dateMin) {
+                this.value = '';
+                this.setCustomValidity('Vous ne pouvez pas sélectionner une date passée.');
+                alert('❌ Date de collecte invalide : vous ne pouvez pas choisir une date passée.');
+            } else {
+                this.setCustomValidity('');
+                
+                // Mettre à jour la date minimale de livraison
+                if (dateSelectionnee) {
+                    dateLivraison.setAttribute('min', dateSelectionnee);
+                    
+                    // Vérifier si la date de livraison est toujours valide
+                    if (dateLivraison.value && dateLivraison.value < dateSelectionnee) {
+                        dateLivraison.value = '';
+                        alert('⚠️ La date de livraison a été réinitialisée car elle était antérieure à la date de collecte.');
+                    }
+                }
+            }
+        });
+        
+        // Événement : validation de la date de livraison
+        dateLivraison.addEventListener('input', function() {
+            const dateSelectionnee = this.value;
+            const dateCollecteVal = dateCollecte.value;
+            
+            // Vérifier que la date n'est pas passée
+            if (dateSelectionnee && dateSelectionnee < dateMin) {
+                this.value = '';
+                this.setCustomValidity('Vous ne pouvez pas sélectionner une date passée.');
+                alert('❌ Date de livraison invalide : vous ne pouvez pas choisir une date passée.');
+                return;
+            }
+            
+            // Vérifier que la date de livraison n'est pas avant la collecte
+            if (dateCollecteVal && dateSelectionnee && dateSelectionnee < dateCollecteVal) {
+                this.value = '';
+                this.setCustomValidity('La date de livraison doit être égale ou postérieure à la date de collecte.');
+                alert('❌ La date de livraison ne peut pas être antérieure à la date de collecte.');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+        
+        // Événement change pour double validation
+        dateCollecte.addEventListener('change', function() {
+            this.dispatchEvent(new Event('input'));
+        });
+        
+        dateLivraison.addEventListener('change', function() {
+            this.dispatchEvent(new Event('input'));
+        });
+    }
+    
+    // Validation AVANT la soumission du formulaire
+    function validerFormulaire(event) {
+        const dateCollecte = document.getElementById('dateCollecte');
+        const dateLivraison = document.getElementById('dateLivraison');
+        const dateMin = getDateAujourdhui();
+        
+        let erreurs = [];
+        
+        // Vérifier date de collecte
+        if (!dateCollecte.value) {
+            erreurs.push('- La date de collecte est obligatoire.');
+        } else if (dateCollecte.value < dateMin) {
+            erreurs.push('- La date de collecte ne peut pas être une date passée.');
+        }
+        
+        // Vérifier date de livraison
+        if (!dateLivraison.value) {
+            erreurs.push('- La date de livraison est obligatoire.');
+        } else if (dateLivraison.value < dateMin) {
+            erreurs.push('- La date de livraison ne peut pas être une date passée.');
+        } else if (dateCollecte.value && dateLivraison.value < dateCollecte.value) {
+            erreurs.push('- La date de livraison ne peut pas être antérieure à la date de collecte.');
+        }
+        
+        // Si des erreurs existent, empêcher la soumission
+        if (erreurs.length > 0) {
+            event.preventDefault();
+            alert('🚫 ERREUR DE VALIDATION :\n\n' + erreurs.join('\n'));
+            return false;
+        }
+        
+        return true;
+    }
+    
+    // Initialisation au chargement de la page
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            appliquerRestrictionsDates();
+            
+            // Ajouter la validation au formulaire
+            const formulaire = document.getElementById('commandeForm');
+            if (formulaire) {
+                formulaire.addEventListener('submit', validerFormulaire);
+            }
+        });
+    } else {
+        appliquerRestrictionsDates();
+        
+        // Ajouter la validation au formulaire
+        const formulaire = document.getElementById('commandeForm');
+        if (formulaire) {
+            formulaire.addEventListener('submit', validerFormulaire);
+        }
+    }
+})();
+    </script>
+</body>
 </head>
 <body>
     <div class="container">
