@@ -1,6 +1,9 @@
 <?php
 /**
  * Tableau de bord administrateur
+ * 
+ * MODIFICATION: Changement de terminologie
+ * - "Points de fidélité" → "Nombre de lavages"
  */
 
 session_start();
@@ -52,20 +55,20 @@ try {
     $stmt = $conn->query("SELECT COUNT(*) as total FROM admins WHERE status = 'actif'");
     $totalAdmins = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
-    // Total commentaires
-    $stmt = $conn->query("SELECT COUNT(*) as total FROM comments");
-    $totalComments = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    // Total commandes
+    $stmt = $conn->query("SELECT COUNT(*) as total FROM orders");
+    $totalOrders = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
-    // Note moyenne
-    $stmt = $conn->query("SELECT AVG(rating) as avg_rating FROM comments WHERE rating IS NOT NULL");
-    $avgRating = $stmt->fetch(PDO::FETCH_ASSOC)['avg_rating'] ?? 0;
+    // NOUVEAU: Total des lavages effectués (somme de tous les points_counter)
+    $stmt = $conn->query("SELECT SUM(points_counter) as total_lavages FROM users");
+    $totalLavages = $stmt->fetch(PDO::FETCH_ASSOC)['total_lavages'] ?? 0;
     
 } catch (Exception $e) {
     error_log('Erreur récupération stats: ' . $e->getMessage());
     $totalUsers = 0;
     $totalAdmins = 0;
-    $totalComments = 0;
-    $avgRating = 0;
+    $totalOrders = 0;
+    $totalLavages = 0;
 }
 ?>
 <!DOCTYPE html>
@@ -317,21 +320,22 @@ try {
 
             <div class="stat-card">
                 <div class="stat-icon orange">
-                    <i class="fas fa-comments"></i>
+                    <i class="fas fa-shopping-cart"></i>
                 </div>
                 <div class="stat-content">
-                    <h3><?php echo $totalComments; ?></h3>
-                    <p>Commentaires totaux</p>
+                    <h3><?php echo $totalOrders; ?></h3>
+                    <p>Commandes totales</p>
                 </div>
             </div>
 
+            <!-- MODIFICATION: Nouvelle carte pour les lavages -->
             <div class="stat-card">
                 <div class="stat-icon purple">
-                    <i class="fas fa-star"></i>
+                    <i class="fas fa-soap"></i>
                 </div>
                 <div class="stat-content">
-                    <h3><?php echo number_format($avgRating, 1); ?></h3>
-                    <p>Note moyenne</p>
+                    <h3><?php echo $totalLavages; ?></h3>
+                    <p>Lavages effectués</p>
                 </div>
             </div>
         </div>
@@ -339,9 +343,9 @@ try {
         <div class="quick-actions">
             <h2>🚀 Actions rapides</h2>
             <div class="actions-grid">
-                <a href="admin_comments.php" class="action-btn">
-                    <i class="fas fa-comments"></i>
-                    Gérer les commentaires
+                <a href="admin_orders.php" class="action-btn">
+                    <i class="fas fa-list"></i>
+                    Gérer les commandes
                 </a>
                 <a href="admin/view_users.php" class="action-btn">
                     <i class="fas fa-users-cog"></i>

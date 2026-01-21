@@ -1,155 +1,409 @@
 <?php
 /**
- * Script de traitement de la commande
- * Version mise à jour avec tous les nouveaux champs
+ * ✅ TRAITEMENT COMMANDES - CYCLE FIDÉLITÉ 11 LAVAGES
+ * Recalcule TOUT côté serveur - Ne fait JAMAIS confiance au frontend
  */
 
 session_start();
-
 header('Content-Type: application/json; charset=utf-8');
-
 require_once 'config.php';
 
-// Vérifier que l'utilisateur est connecté
-if (!isset($_SESSION['user_id'])) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Vous devez être connecté pour passer une commande'
-    ]);
-    exit;
-}
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Méthode non autorisée'
-    ]);
-    exit;
-}
-
 try {
-    $json = file_get_contents('php://input');
-    $data = json_decode($json, true);
+    // Vérification session
+    if (!isset($_SESSION['user_id'])) {
+        throw new Exception('Utilisateur non connecté');
+    }
+
+    $userId = $_SESSION['user_id'];
+    
+    // Récupération données
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
     
     if (!$data) {
-        throw new Exception('Aucune donnée reçue');
+        throw new Exception('Données invalides');
     }
     
-    $conn = getDBConnection();
+    $requiredFields = [
+        'nomClient', 'telephone', 'adresseCollecte', 'dateCollecte',
+        'communeCollecte', 'adresseLivraison', 'dateLivraison',
+        'communeLivraison', 'paiement', 'poids'
+    ];
     
-    // Récupérer les informations de l'utilisateur
-    $userId = $_SESSION['user_id'];
-    $stmt = $conn->prepare("SELECT customer_code, points_counter FROM users WHERE id = ?");
+    foreach ($requiredFields as $field) {
+        if (!isset($data[$field])) {
+            throw new Exception("Le champ $field est requis");
+        }
+    }
+    
+    // Connexion BDD
+    $conn = getDBConnection();
+    $conn->beginTransaction();
+    
+    // Récupérer utilisateur
+    $stmt = $conn->prepare("
+        SELECT customer_code, nombre_lavage 
+        FROM users 
+        WHERE id = ? 
+        FOR UPDATE
+    ");
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
     
-    // Générer un numéro de commande unique
-    $orderNumber = 'CMD-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
-    
-    // Vérifier que le numéro n'existe pas
-    $stmt = $conn->prepare("SELECT id FROM orders WHERE order_number = ?");
-    $stmt->execute([$orderNumber]);
-    if ($stmt->fetch()) {
-        $orderNumber = 'CMD-' . date('YmdHis') . '-' . rand(100, 999);
+    if (!$user) {
+        throw new Exception('Utilisateur introuvable');
     }
     
-    // Récupérer tous les prix
-    $prixLavage = floatval($data['prixLavage'] ?? 0);
-    $prixSechage = floatval($data['prixSechage'] ?? 0);
-    $prixPliage = floatval($data['prixPliage'] ?? 0);
-    $prixRepassage = floatval($data['prixRepassage'] ?? 0);
-    $prixCollecte = floatval($data['prixCollecte'] ?? 0);
-    $totalAmount = floatval($data['total'] ?? 0);
+    $ancienNombreLavage = intval($user['nombre_lavage']);
     
-    // Parser les détails de poids
-    $detailsPoidsArray = json_decode($data['detailsPoids'], true);
+    // ============================================
+    // GRILLE TARIFAIRE
+    // ============================================
+    $tarifs = [
+        'froid' => [
+            ['min' => 0, 'max' => 6, 'prix' => 2500],
+            ['min' => 6, 'max' => 8, 'prix' => 3000],
+            ['min' => 8, 'max' => 10, 'prix' => 5000]
+        ],
+        'tiede' => [
+            ['min' => 0, 'max' => 6, 'prix' => 3000],
+            ['min' => 6, 'max' => 8, 'prix' => 3500],
+            ['min' => 8, 'max' => 10, 'prix' => 6000]
+        ],
+        'chaud' => [
+            ['min' => 0, 'max' => 6, 'prix' => 3500],
+            ['min' => 6, 'max' => 8, 'prix' => 4000],
+            ['min' => 8, 'max' => 10, 'prix' => 7000]
+        ]
+    ];
     
-    // Préparer les détails COMPLETS de la commande (JSON)
+    $tarifsCommunePrix = [
+        'godomey' => 500,
+        'cotonou' => 1000,
+        'calavi' => 800,
+        'autres' => 1500
+    ];
+    
+    // ============================================
+    // FONCTIONS DE CALCUL
+    // ============================================
+    function calculerPrixLavageVolumineux($poids, $temperature, $tarifs) {
+        if ($poids <= 0) return ['prix' => 0, 'lav' => 0];
+        
+        $grille = $tarifs[$temperature];
+        
+        $prix10kg = 0;
+        foreach ($grille as $tranche) {
+            if (10 > $tranche['min'] && 10 <= $tranche['max']) {
+                $prix10kg = $tranche['prix'];
+                break;
+            }
+        }
+        
+        $prixTotal = 0;
+        $poidsRestant = $poids;
+        $lav = 0;
+        
+        while ($poidsRestant >= 10) {
+            $prixPremierPartie = $prix10kg;
+            $prixDeuxiemePartie = ceil($prix10kg * 0.55);
+            
+            $prixTotal += $prixPremierPartie + $prixDeuxiemePartie;
+            $lav += 2;
+            
+            $poidsRestant -= 10;
+        }
+        
+        if ($poidsRestant > 0) {
+            if ($poidsRestant >= 9) {
+                $prixPremierPartie = $prix10kg;
+                $prixDeuxiemePartie = ceil($prix10kg * 0.55);
+                $prixTotal += $prixPremierPartie + $prixDeuxiemePartie;
+                $lav += 2;
+            } else {
+                $prixTotal += $prix10kg;
+                $lav += 1;
+            }
+        }
+        
+        return ['prix' => $prixTotal, 'lav' => $lav];
+    }
+    
+    function calculerPrixLavageOrdinaire($poids, $temperature, $tarifs) {
+        if ($poids <= 0) return ['prix' => 0, 'lav' => 0];
+        
+        $grille = $tarifs[$temperature];
+        $prixTotal = 0;
+        $lav = 0;
+        $poidsRestant = $poids;
+        
+        while ($poidsRestant > 0) {
+            $poidsTraite = min($poidsRestant, 10);
+            
+            foreach ($grille as $tranche) {
+                if ($poidsTraite > $tranche['min'] && $poidsTraite <= $tranche['max']) {
+                    $prixTotal += $tranche['prix'];
+                    $lav += 1;
+                    break;
+                }
+            }
+            
+            $poidsRestant -= 10;
+        }
+        
+        return ['prix' => $prixTotal, 'lav' => $lav];
+    }
+    
+    function calculerPrixSechage($poids) {
+        if ($poids <= 0) return 0;
+        if ($poids <= 2) return 1000;
+        if ($poids <= 3) return 1500;
+        if ($poids <= 4) return 2000;
+        if ($poids <= 6) return 2500;
+        if ($poids <= 8) return 3000;
+        return 3000 + calculerPrixSechage($poids - 8);
+    }
+    
+    function calculerPrixPliage($poidsTotal) {
+        if ($poidsTotal < 4) return 0;
+        $quotient = floor($poidsTotal / 8);
+        $reste = $poidsTotal % 8;
+        $prix = $quotient * 500;
+        if ($reste >= 4) $prix += 500;
+        return $prix;
+    }
+    
+    function calculerPrixRepassage($poidsVolumineux, $poidsOrdinaire) {
+        $prixTotal = 0;
+        if ($poidsVolumineux >= 4) {
+            $prixTotal += floor($poidsVolumineux / 4) * 200;
+        }
+        if ($poidsOrdinaire >= 4) {
+            $prixTotal += floor($poidsOrdinaire / 4) * 150;
+        }
+        return $prixTotal;
+    }
+    
+    // ============================================
+    // TRAITEMENT DES POIDS
+    // ============================================
+    $poidsData = $data['poids'];
+    
+    $categoriesVolumineux = ['a1', 'b1', 'c1'];
+    $categoriesOrdinaire = ['a2', 'b2', 'c2'];
+    $temperatures = ['chaud', 'tiede', 'froid'];
+    
+    $prixLavageTotal = 0;
+    $lavTotal = 0;
+    $poidsVolumineuxTotal = 0;
+    $poidsOrdinaireTotal = 0;
+    $poidsGrandTotal = 0;
+    $detailsPoids = [];
+    
+    // VOLUMINEUX
+    foreach ($categoriesVolumineux as $cat) {
+        foreach ($temperatures as $temp) {
+            $key = "{$cat}_{$temp}";
+            $poids = floatval($poidsData[$key] ?? 0);
+            
+            if ($poids < 0 || $poids > 1000) {
+                throw new Exception("Poids invalide pour $key");
+            }
+            
+            if ($poids > 0) {
+                $result = calculerPrixLavageVolumineux($poids, $temp, $tarifs);
+                $prixLavageTotal += $result['prix'];
+                $lavTotal += $result['lav'];
+                $poidsVolumineuxTotal += $poids;
+                $poidsGrandTotal += $poids;
+                
+                $detailsPoids[] = [
+                    'categorie' => $key,
+                    'poids' => $poids,
+                    'temperature' => $temp,
+                    'prix' => $result['prix'],
+                    'lav' => $result['lav'],
+                    'type' => 'volumineux'
+                ];
+            }
+        }
+    }
+    
+    // ORDINAIRE
+    foreach ($categoriesOrdinaire as $cat) {
+        foreach ($temperatures as $temp) {
+            $key = "{$cat}_{$temp}";
+            $poids = floatval($poidsData[$key] ?? 0);
+            
+            if ($poids < 0 || $poids > 1000) {
+                throw new Exception("Poids invalide pour $key");
+            }
+            
+            if ($poids > 0) {
+                $result = calculerPrixLavageOrdinaire($poids, $temp, $tarifs);
+                $prixLavageTotal += $result['prix'];
+                $lavTotal += $result['lav'];
+                $poidsOrdinaireTotal += $poids;
+                $poidsGrandTotal += $poids;
+                
+                $detailsPoids[] = [
+                    'categorie' => $key,
+                    'poids' => $poids,
+                    'temperature' => $temp,
+                    'prix' => $result['prix'],
+                    'lav' => $result['lav'],
+                    'type' => 'ordinaire'
+                ];
+            }
+        }
+    }
+    
+    if ($prixLavageTotal == 0) {
+        throw new Exception('Aucun linge à laver');
+    }
+    
+    // ============================================
+    // ✅ LOGIQUE FIDÉLITÉ - CYCLE DE 11 LAVAGES
+    // ============================================
+    $totalLavages = $ancienNombreLavage + $lavTotal;
+    $nombreReductions = floor($totalLavages / 11);
+    $nouveauNombreLavage = $totalLavages % 11;
+    $reductionFidelite = $nombreReductions * 2500;
+    
+    // Appliquer réduction
+    $prixLavageFinal = max(0, $prixLavageTotal - $reductionFidelite);
+    
+    // ============================================
+    // AUTRES CALCULS
+    // ============================================
+    $prixSechage = calculerPrixSechage($poidsGrandTotal);
+    $prixPliage = calculerPrixPliage($poidsGrandTotal);
+    $prixRepassage = calculerPrixRepassage($poidsVolumineuxTotal, $poidsOrdinaireTotal);
+    
+    $commune1 = $data['communeCollecte'];
+    $commune2 = $data['communeLivraison'];
+    $prixCollecte = ($tarifsCommunePrix[$commune1] ?? 0) + ($tarifsCommunePrix[$commune2] ?? 0);
+    
+    $totalCommande = $prixLavageFinal + $prixSechage + $prixPliage + $prixRepassage + $prixCollecte;
+    
+    // ============================================
+    // GÉNÉRATION NUMÉRO COMMANDE
+    // ============================================
+    $orderNumber = 'CMD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
+    
+    // ============================================
+    // PRÉPARATION ORDER_DETAILS
+    // ============================================
     $orderDetails = [
-        // Informations client SAISIES dans le formulaire
-        'nomClientSaisi' => $data['nomClient'] ?? '',
-        'telephoneSaisi' => $data['telephone'] ?? '',
-        
-        // Détails de lavage
-        'poids' => $data['poids'] ?? [],
-        'detailsPoidsComplets' => $detailsPoidsArray,
-        'poidsTotal' => floatval($data['poidsTotal'] ?? 0),
-        
-        // Adresses et communes
-        'communeCollecte' => $data['communeCollecte'] ?? '',
-        'communeLivraison' => $data['communeLivraison'] ?? '',
-        
-        // Finances détaillées
-        'prixLavage' => $prixLavage,
+        'nomClientSaisi' => cleanInput($data['nomClient']),
+        'telephoneSaisi' => cleanInput($data['telephone']),
+        'poids' => $poidsData,
+        'detailsPoidsComplets' => $detailsPoids,
+        'communeCollecte' => $commune1,
+        'communeLivraison' => $commune2,
+        'prixLavageBrut' => $prixLavageTotal,
         'prixSechage' => $prixSechage,
         'prixPliage' => $prixPliage,
         'prixRepassage' => $prixRepassage,
         'prixCollecte' => $prixCollecte,
-        'reductionFidelite' => floatval($data['reductionFidelite'] ?? 0),
-        'moyenPaiement' => $data['paiement'] ?? ''
+        'reductionFidelite' => $reductionFidelite,
+        'moyenPaiement' => cleanInput($data['paiement']),
+        'ancienNombreLavage' => $ancienNombreLavage,
+        'lavCommande' => $lavTotal,
+        'nouveauNombreLavage' => $nouveauNombreLavage
     ];
     
-    // Insérer la commande
-    $sql = "INSERT INTO orders (
-        user_id, 
-        order_number, 
-        service_type,
-        pickup_address, 
-        pickup_date,
-        delivery_address,
-        delivery_date,
-        total_amount,
-        washing_price,
-        drying_price,
-        folding_price,
-        ironing_price,
-        delivery_price,
-        loyalty_discount,
-        total_weight,
-        order_details,
-        payment_method,
-        status,
-        points_at_order
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    // ============================================
+    // INSERTION COMMANDE
+    // ============================================
+    $stmt = $conn->prepare("
+        INSERT INTO orders (
+            user_id,
+            order_number,
+            customer_code,
+            service_type,
+            pickup_address,
+            pickup_date,
+            delivery_address,
+            delivery_date,
+            total_amount,
+            washing_price,
+            drying_price,
+            folding_price,
+            ironing_price,
+            delivery_price,
+            loyalty_discount,
+            total_weight,
+            order_details,
+            payment_method,
+            status,
+            nombre_lavage_commande,
+            nombre_lavage_avant,
+            nombre_lavage_apres
+        ) VALUES (
+            ?, ?, ?, 'lavage_complet',
+            ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, 'pending', ?, ?, ?
+        )
+    ");
     
-    $stmt = $conn->prepare($sql);
     $stmt->execute([
         $userId,
         $orderNumber,
-        'Lavage',
-        $data['adresseCollecte'] ?? '',
-        $data['dateCollecte'] ?? '',
-        $data['adresseLivraison'] ?? '',
-        $data['dateLivraison'] ?? '',
-        $totalAmount,
-        $prixLavage,
+        $user['customer_code'],
+        cleanInput($data['adresseCollecte']),
+        $data['dateCollecte'],
+        cleanInput($data['adresseLivraison']),
+        $data['dateLivraison'],
+        $totalCommande,
+        $prixLavageFinal,
         $prixSechage,
         $prixPliage,
         $prixRepassage,
         $prixCollecte,
-        floatval($data['reductionFidelite'] ?? 0),
-        floatval($data['poidsTotal'] ?? 0),
+        $reductionFidelite,
+        $poidsGrandTotal,
         json_encode($orderDetails, JSON_UNESCAPED_UNICODE),
-        $data['paiement'] ?? '',
-        'en_attente_paiement',
-        $user['points_counter']
+        cleanInput($data['paiement']),
+        $lavTotal,
+        $ancienNombreLavage,
+        $nouveauNombreLavage
     ]);
     
     $orderId = $conn->lastInsertId();
+    
+    // Valider transaction
+    $conn->commit();
     
     echo json_encode([
         'success' => true,
         'message' => 'Commande enregistrée avec succès',
         'orderId' => $orderId,
         'orderNumber' => $orderNumber,
-        'totalAmount' => $totalAmount,
-        'customerCode' => $user['customer_code']
+        'debug' => [
+            'ancienNombreLavage' => $ancienNombreLavage,
+            'lavCommande' => $lavTotal,
+            'totalLavages' => $totalLavages,
+            'nombreReductions' => $nombreReductions,
+            'nouveauNombreLavage' => $nouveauNombreLavage,
+            'reductionFidelite' => $reductionFidelite,
+            'prixLavageBrut' => $prixLavageTotal,
+            'prixLavageFinal' => $prixLavageFinal
+        ]
     ]);
     
 } catch (Exception $e) {
+    if (isset($conn) && $conn->inTransaction()) {
+        $conn->rollBack();
+    }
+    
+    error_log("Erreur process_order: " . $e->getMessage());
+    
+    http_response_code(400);
     echo json_encode([
         'success' => false,
-        'message' => 'Erreur : ' . $e->getMessage()
+        'message' => $e->getMessage()
     ]);
 }
 ?>

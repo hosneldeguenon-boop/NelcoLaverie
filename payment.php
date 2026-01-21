@@ -204,7 +204,6 @@
             z-index: 1000;
             align-items: center;
             justify-content: center;
-            overflow-y: auto;
         }
 
         .loading-overlay.active {
@@ -260,15 +259,7 @@
         <div class="order-summary">
             <h3>Récapitulatif de la commande</h3>
             <div class="summary-line">
-                <span>Prix lavage</span>
-                <span id="prixLavage">0 FCFA</span>
-            </div>
-            <div class="summary-line">
-                <span>Prix collecte/livraison</span>
-                <span id="prixCollecte">0 FCFA</span>
-            </div>
-            <div class="summary-line">
-                <span>Total à payer</span>
+                <span>Montant total</span>
                 <span id="totalAmount">0 FCFA</span>
             </div>
         </div>
@@ -276,6 +267,14 @@
         <div class="payment-methods">
             <h3>Choisir un moyen de paiement</h3>
             
+            <div class="payment-method" data-method="livraison" onclick="selectMethod('livraison')">
+                <i class="fas fa-hand-holding-usd"></i>
+                <div>
+                    <div class="method-name">Paiement à la livraison</div>
+                    <small>Payez en espèces lors de la livraison</small>
+                </div>
+            </div>
+
             <div class="payment-method" data-method="mtn" onclick="selectMethod('mtn')">
                 <i class="fas fa-mobile-alt"></i>
                 <div>
@@ -308,14 +307,6 @@
             <div class="phone-input" id="phone-celtiis">
                 <input type="tel" placeholder="+229 XX XX XX XX" id="phone-input-celtiis">
             </div>
-
-            <div class="payment-method" data-method="livraison" onclick="selectMethod('livraison')">
-                <i class="fas fa-hand-holding-usd"></i>
-                <div>
-                    <div class="method-name">Paiement à la livraison</div>
-                    <small>Payez en espèces lors de la livraison</small>
-                </div>
-            </div>
         </div>
 
         <div class="btn-container">
@@ -341,47 +332,94 @@
     </div>
 
     <script>
+        // Récupérer les paramètres URL
         const urlParams = new URLSearchParams(window.location.search);
         const orderId = urlParams.get('orderId');
         const orderNumber = urlParams.get('orderNumber');
-        const totalAmount = parseFloat(urlParams.get('total'));
-        const prixLavage = parseFloat(urlParams.get('lavage'));
-        const prixCollecte = parseFloat(urlParams.get('collecte'));
+        const method = urlParams.get('method');
 
-        document.getElementById('orderNumber').textContent = `Commande : ${orderNumber}`;
-        document.getElementById('prixLavage').textContent = `${prixLavage.toLocaleString()} FCFA`;
-        document.getElementById('prixCollecte').textContent = `${prixCollecte.toLocaleString()} FCFA`;
-        document.getElementById('totalAmount').textContent = `${totalAmount.toLocaleString()} FCFA`;
+        console.log('=== PAYMENT PAGE ===');
+        console.log('OrderID:', orderId);
+        console.log('OrderNumber:', orderNumber);
+        console.log('Method:', method);
 
-        let selectedMethod = urlParams.get('method') || '';
+        // Afficher le numéro de commande
+        if (orderNumber) {
+            document.getElementById('orderNumber').textContent = `Commande : ${orderNumber}`;
+        }
+
+        let selectedMethod = method || '';
+        let totalAmount = 0;
+
+        // Charger les détails de la commande
+        async function loadOrderDetails() {
+            try {
+                const response = await fetch(`get_order_amount.php?orderId=${orderId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    totalAmount = parseFloat(data.amount);
+                    document.getElementById('totalAmount').textContent = `${totalAmount.toLocaleString()} FCFA`;
+                } else {
+                    showError('Erreur chargement commande');
+                }
+            } catch (error) {
+                console.error('Error loading order:', error);
+                showError('Erreur chargement commande');
+            }
+        }
+
+        loadOrderDetails();
         
+        // Présélectionner la méthode si fournie
         if (selectedMethod) {
             selectMethod(selectedMethod);
+        } else {
+            // Par défaut, sélectionner "Paiement à la livraison"
+            selectMethod('livraison');
         }
 
         function selectMethod(method) {
-            // Retirer la sélection des autres
+            console.log('Selected method:', method);
+            
+            // Retirer la sélection précédente
             document.querySelectorAll('.payment-method').forEach(m => m.classList.remove('selected'));
             document.querySelectorAll('.phone-input').forEach(p => p.classList.remove('active'));
             
-            // Sélectionner le nouveau
-            document.querySelector(`[data-method="${method}"]`).classList.add('selected');
+            // Sélectionner la nouvelle méthode
+            const methodElement = document.querySelector(`[data-method="${method}"]`);
+            if (methodElement) {
+                methodElement.classList.add('selected');
+            }
             
-            // Afficher champ téléphone si mobile money
+            // Afficher le champ téléphone si nécessaire
             if (['mtn', 'moov', 'celtiis'].includes(method)) {
-                document.getElementById(`phone-${method}`).classList.add('active');
+                const phoneInput = document.getElementById(`phone-${method}`);
+                if (phoneInput) {
+                    phoneInput.classList.add('active');
+                }
             }
             
             selectedMethod = method;
         }
 
         async function processPaiement() {
+            console.log('=== PROCESSING PAYMENT ===');
+            console.log('Selected method:', selectedMethod);
+            console.log('Order ID:', orderId);
+            console.log('Amount:', totalAmount);
+            
+            // Validation
             if (!selectedMethod) {
                 showError('Veuillez sélectionner un moyen de paiement');
                 return;
             }
 
-            // Valider le numéro de téléphone pour mobile money
+            if (!orderId || !totalAmount) {
+                showError('Informations de commande manquantes');
+                return;
+            }
+
             let phoneNumber = '';
             if (['mtn', 'moov', 'celtiis'].includes(selectedMethod)) {
                 phoneNumber = document.getElementById(`phone-input-${selectedMethod}`).value.trim();
@@ -391,50 +429,68 @@
                 }
             }
 
+            const payload = {
+                orderId: orderId,
+                method: selectedMethod,
+                amount: totalAmount,
+                phoneNumber: phoneNumber
+            };
+
+            console.log('Payload:', payload);
+
+            // Afficher le loader
             document.getElementById('loadingOverlay').classList.add('active');
             document.getElementById('btnPayer').disabled = true;
 
             try {
+                console.log('Sending request to payment_handler.php...');
+                
                 const response = await fetch('payment_handler.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        orderId: orderId,
-                        method: selectedMethod,
-                        amount: totalAmount,
-                        phoneNumber: phoneNumber
-                    })
+                    body: JSON.stringify(payload)
                 });
 
-                const data = await response.json();
+                console.log('Response status:', response.status);
+
+                const responseText = await response.text();
+                console.log('Raw response:', responseText);
+
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                    console.log('Parsed data:', data);
+                } catch (e) {
+                    console.error('JSON parse error:', e);
+                    throw new Error('Réponse invalide du serveur');
+                }
                 
+                // Masquer le loader
                 document.getElementById('loadingOverlay').classList.remove('active');
                 document.getElementById('btnPayer').disabled = false;
 
                 if (data.success) {
-                    // SUCCÈS - Redirection
-                    window.location.href = data.redirect || `order_summary.php?orderId=${orderId}`;
+                    console.log('SUCCESS! Redirecting to:', data.redirect);
+                    // Redirection immédiate
+                    window.location.href = data.redirect;
                 } else {
-                    // ÉCHEC - Afficher message
-                    showError(data.message);
-                    
-                    // Si fallback activé, proposer autres options
-                    if (data.fallback) {
-                        // L'utilisateur peut sélectionner un autre moyen
-                    }
+                    console.log('FAILED:', data.message);
+                    showError(data.message || 'Erreur lors du paiement');
                 }
                 
             } catch (error) {
-                console.error('Erreur:', error);
+                console.error('=== ERROR ===', error);
+                
                 document.getElementById('loadingOverlay').classList.remove('active');
                 document.getElementById('btnPayer').disabled = false;
-                showError('Une erreur est survenue. Veuillez réessayer.');
+                showError('Erreur: ' + error.message);
             }
         }
 
         function showError(message) {
+            console.log('Showing error:', message);
             const errorBox = document.getElementById('errorMessage');
             errorBox.textContent = message;
             errorBox.classList.add('show');

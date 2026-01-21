@@ -397,126 +397,79 @@ try {
                     </div>
                 </div>
             </div>
+             <!-- Section à remplacer dans order_summary.php -->
 
-            <div class="section">
-                <h2><i class="fas fa-user-tag"></i> Client de la commande</h2>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Nom du client</div>
-                        <div class="info-value info-highlight"><?= htmlspecialchars($orderDetails['nomClientSaisi'] ?? 'Non spécifié') ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Téléphone du client</div>
-                        <div class="info-value info-highlight"><?= htmlspecialchars($orderDetails['telephoneSaisi'] ?? 'Non spécifié') ?></div>
-                    </div>
-                </div>
-                <p style="font-size: 13px; color: #6c757d; margin-top: 10px;">
-                    <i class="fas fa-info-circle"></i> Il s'agit des coordonnées du client pour qui cette commande est effectuée.
-                </p>
-            </div>
+<div class="section">
+    <h2><i class="fas fa-user-tag"></i> Client de la commande</h2>
+    <div class="info-grid">
+        <div class="info-item">
+            <div class="info-label">Nom du client</div>
+            <div class="info-value info-highlight"><?= htmlspecialchars($orderDetails['nomClientSaisi'] ?? 'Non spécifié') ?></div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">Téléphone du client</div>
+            <div class="info-value info-highlight"><?= htmlspecialchars($orderDetails['telephoneSaisi'] ?? 'Non spécifié') ?></div>
+        </div>
+    </div>
+    <p style="font-size: 13px; color: #6c757d; margin-top: 10px;">
+        <i class="fas fa-info-circle"></i> Il s'agit des coordonnées du client pour qui cette commande est effectuée.
+    </p>
+</div>
 
-            <div class="section">
-                <h2><i class="fas fa-truck"></i> Collecte et Livraison</h2>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Date de collecte</div>
-                        <div class="info-value"><?= date('d/m/Y', strtotime($order['pickup_date'])) ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Adresse de collecte</div>
-                        <div class="info-value"><?= htmlspecialchars($order['pickup_address']) ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Date de livraison</div>
-                        <div class="info-value"><?= date('d/m/Y', strtotime($order['delivery_date'])) ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Adresse de livraison</div>
-                        <div class="info-value"><?= htmlspecialchars($order['delivery_address']) ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Commune collecte</div>
-                        <div class="info-value"><?= htmlspecialchars($orderDetails['communeCollecte'] ?? 'Non spécifié') ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Commune livraison</div>
-                        <div class="info-value"><?= htmlspecialchars($orderDetails['communeLivraison'] ?? 'Non spécifié') ?></div>
-                    </div>
-                </div>
-            </div>
+<!-- Section détails financiers avec les bonnes clés -->
+<div class="section">
+    <h2><i class="fas fa-dollar-sign"></i> Détails financiers complets</h2>
+    
+    <div class="financial-details">
+        <div class="financial-item">
+            <span class="label">Prix lavage</span>
+            <span class="value"><?= number_format($orderDetails['prixLavage'] ?? $order['washing_price'], 0, ',', ' ') ?> FCFA</span>
+        </div>
 
-            <div class="section">
-                <h2><i class="fas fa-tshirt"></i> Détails du linge</h2>
-                <?php if (isset($orderDetails['detailsPoidsComplets']) && count($orderDetails['detailsPoidsComplets']) > 0): ?>
-                    <div class="poids-details">
-                        <?php foreach ($orderDetails['detailsPoidsComplets'] as $item): ?>
-                            <div class="poids-item">
-                                <span class="label"><?= htmlspecialchars($item['label']) ?></span>
-                                <div class="details">
-                                    <div class="poids"><?= $item['poids'] ?> kg</div>
-                                    <div class="prix"><?= number_format($item['prix'], 0, ',', ' ') ?> FCFA</div>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php else: ?>
-                    <p style="color: #6c757d; font-style: italic;">Aucun détail de poids disponible</p>
-                <?php endif; ?>
-            </div>
+        <?php if (($orderDetails['reductionFidelite'] ?? 0) > 0): ?>
+        <div class="financial-item reduction">
+            <span class="label">🎁 Réduction fidélité</span>
+            <span class="value">-<?= number_format($orderDetails['reductionFidelite'], 0, ',', ' ') ?> FCFA</span>
+        </div>
+        <?php endif; ?>
 
-            <div class="section">
-                <h2><i class="fas fa-dollar-sign"></i> Détails financiers complets</h2>
-                
-                <div class="financial-details">
-                    <div class="financial-item">
-                        <span class="label">Prix lavage</span>
-                        <span class="value"><?= number_format($order['washing_price'], 0, ',', ' ') ?> FCFA</span>
-                    </div>
+        <div class="financial-item">
+            <span class="label">Prix séchage</span>
+            <span class="value"><?= number_format($orderDetails['prixSechage'] ?? $order['drying_price'], 0, ',', ' ') ?> FCFA</span>
+        </div>
 
-                    <?php if ($order['loyalty_discount'] > 0): ?>
-                    <div class="financial-item reduction">
-                        <span class="label">🎁 Réduction fidélité</span>
-                        <span class="value">-<?= number_format($order['loyalty_discount'], 0, ',', ' ') ?> FCFA</span>
-                    </div>
-                    <?php endif; ?>
+        <div class="financial-item">
+            <span class="label">Prix pliage</span>
+            <span class="value"><?= number_format($orderDetails['prixPliage'] ?? $order['folding_price'], 0, ',', ' ') ?> FCFA</span>
+        </div>
 
-                    <div class="financial-item">
-                        <span class="label">Prix séchage</span>
-                        <span class="value"><?= number_format($order['drying_price'], 0, ',', ' ') ?> FCFA</span>
-                    </div>
+        <div class="financial-item">
+            <span class="label">Prix repassage</span>
+            <span class="value"><?= number_format($orderDetails['prixRepassage'] ?? $order['ironing_price'], 0, ',', ' ') ?> FCFA</span>
+        </div>
 
-                    <div class="financial-item">
-                        <span class="label">Prix pliage</span>
-                        <span class="value"><?= number_format($order['folding_price'], 0, ',', ' ') ?> FCFA</span>
-                    </div>
+        <div class="financial-item">
+            <span class="label">Prix collecte/livraison</span>
+            <span class="value"><?= number_format($orderDetails['prixCollecte'] ?? $order['delivery_price'], 0, ',', ' ') ?> FCFA</span>
+        </div>
 
-                    <div class="financial-item">
-                        <span class="label">Prix repassage</span>
-                        <span class="value"><?= number_format($order['ironing_price'], 0, ',', ' ') ?> FCFA</span>
-                    </div>
+        <div class="total-box">
+            <span>Total payé</span>
+            <span><?= number_format($order['total_amount'], 0, ',', ' ') ?> FCFA</span>
+        </div>
+    </div>
 
-                    <div class="financial-item">
-                        <span class="label">Prix collecte/livraison</span>
-                        <span class="value"><?= number_format($order['delivery_price'], 0, ',', ' ') ?> FCFA</span>
-                    </div>
-
-                    <div class="total-box">
-                        <span>Total payé</span>
-                        <span><?= number_format($order['total_amount'], 0, ',', ' ') ?> FCFA</span>
-                    </div>
-                </div>
-
-                <div class="info-grid" style="margin-top: 20px;">
-                    <div class="info-item">
-                        <div class="info-label">Moyen de paiement</div>
-                        <div class="info-value"><?= htmlspecialchars($orderDetails['moyenPaiement'] ?? 'Non spécifié') ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">N° Transaction</div>
-                        <div class="info-value"><?= htmlspecialchars($order['transaction_id'] ?? 'En attente') ?></div>
-                    </div>
-                </div>
-            </div>
+    <div class="info-grid" style="margin-top: 20px;">
+        <div class="info-item">
+            <div class="info-label">Moyen de paiement</div>
+            <div class="info-value"><?= htmlspecialchars($orderDetails['moyenPaiement'] ?? 'Non spécifié') ?></div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">N° Transaction</div>
+            <div class="info-value"><?= htmlspecialchars($order['transaction_id'] ?? 'En attente') ?></div>
+        </div>
+    </div>
+</div>
 
             <div class="btn-container">
                 <button class="btn btn-secondary" onclick="window.print()">

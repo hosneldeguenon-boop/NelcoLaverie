@@ -1,4 +1,6 @@
-// Grille tarifaire complète
+// ============================================
+// GRILLE TARIFAIRE COMPLÈTE
+// ============================================
 const tarifs = {
     froid: [
         { min: 0, max: 6, prix: 2500 },
@@ -24,35 +26,37 @@ const tarifsCommunePrix = {
     autres: 1500
 };
 
-// RÉCUPÉRER LES POINTS DE FIDÉLITÉ depuis la session PHP
-let userPointsFidelite = 0;
+// ============================================
+// ✅ SYSTÈME DE FIDÉLITÉ - CYCLE DE 11 LAVAGES
+// ============================================
+let userNombreLavage = 0;
 
-function getPointsFidelite() {
-    return userPointsFidelite;
+function getNombreLavage() {
+    return userNombreLavage;
 }
 
-// Charger les points au démarrage de la page
 function loadUserPoints() {
     fetch('get_user_points.php')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                userPointsFidelite = parseInt(data.points) || 0;
-                console.log('Points de fidélité chargés:', userPointsFidelite);
-                // Recalculer les prix avec les bons points
+                userNombreLavage = parseInt(data.nombre_lavage) || 0;
+                console.log('Nombre de lavages chargé:', userNombreLavage);
                 calculerPrixTotal();
             } else {
-                console.error('Erreur chargement points:', data.message);
-                userPointsFidelite = 0;
+                console.error('Erreur chargement nombre de lavages:', data.message);
+                userNombreLavage = 0;
             }
         })
         .catch(error => {
             console.error('Erreur:', error);
-            userPointsFidelite = 0;
+            userNombreLavage = 0;
         });
 }
 
-// CALCULER LE PRIX DU SÉCHAGE (récursif)
+// ============================================
+// CALCUL DU PRIX DE SÉCHAGE
+// ============================================
 function calculerPrixSechage(poids) {
     if (poids <= 0) return 0;
     
@@ -62,29 +66,38 @@ function calculerPrixSechage(poids) {
     if (poids <= 6) return 2500;
     if (poids <= 8) return 3000;
     
-    // Si supérieur à 8kg, calculer récursivement
     return 3000 + calculerPrixSechage(poids - 8);
 }
 
-// CALCULER LE PRIX DU PLIAGE
+// ============================================
+// CALCUL DU PRIX DE PLIAGE
+// ============================================
 function calculerPrixPliage(poidsTotal) {
     if (poidsTotal < 4) return 0;
     
-    const nombreTranches = Math.floor(poidsTotal / 4);
-    return nombreTranches * 500;
+    const quotient = Math.floor(poidsTotal / 8);
+    const reste = poidsTotal % 8;
+    
+    let prix = quotient * 500;
+    
+    if (reste >= 4) {
+        prix += 500;
+    }
+    
+    return prix;
 }
 
-// CALCULER LE PRIX DU REPASSAGE
+// ============================================
+// CALCUL DU PRIX DE REPASSAGE
+// ============================================
 function calculerPrixRepassage(poidsVolumineux, poidsOrdinaire) {
     let prixTotal = 0;
     
-    // Repassage volumineux (200F par 4kg)
     if (poidsVolumineux >= 4) {
         const tranchesVolumineux = Math.floor(poidsVolumineux / 4);
         prixTotal += tranchesVolumineux * 200;
     }
     
-    // Repassage ordinaire (150F par 4kg)
     if (poidsOrdinaire >= 4) {
         const tranchesOrdinaire = Math.floor(poidsOrdinaire / 4);
         prixTotal += tranchesOrdinaire * 150;
@@ -93,13 +106,14 @@ function calculerPrixRepassage(poidsVolumineux, poidsOrdinaire) {
     return prixTotal;
 }
 
-// CALCULER LE PRIX DU LAVAGE POUR LINGE VOLUMINEUX
+// ============================================
+// CALCUL DU PRIX DE LAVAGE - LINGE VOLUMINEUX
+// ============================================
 function calculerPrixLavageVolumineux(poids, temperature) {
-    if (poids <= 0) return 0;
+    if (poids <= 0) return { prix: 0, lav: 0 };
     
     const grille = tarifs[temperature];
     
-    // Trouver le prix pour machine 10kg
     let prix10kg = 0;
     for (let tranche of grille) {
         if (10 > tranche.min && 10 <= tranche.max) {
@@ -110,82 +124,75 @@ function calculerPrixLavageVolumineux(poids, temperature) {
     
     let prixTotal = 0;
     let poidsRestant = poids;
+    let lav = 0;
     
-    // Traiter les tranches complètes de 10kg
     while (poidsRestant >= 10) {
-        // Chaque 10kg est lavé en 2 parties
         const prixPremierPartie = prix10kg;
         const prixDeuxiemePartie = Math.ceil(prix10kg * 0.55);
         
         prixTotal += prixPremierPartie + prixDeuxiemePartie;
+        lav += 2;
+        
         poidsRestant -= 10;
     }
     
-    // Traiter le reste (< 10kg)
     if (poidsRestant > 0) {
         if (poidsRestant >= 9) {
-            // Si reste >= 9kg : lavé en 2 parties
             const prixPremierPartie = prix10kg;
             const prixDeuxiemePartie = Math.ceil(prix10kg * 0.55);
             prixTotal += prixPremierPartie + prixDeuxiemePartie;
+            lav += 2;
         } else {
-            // Si reste < 9kg : lavé en 1 seule partie
             prixTotal += prix10kg;
+            lav += 1;
         }
     }
     
-    return prixTotal;
+    return { prix: prixTotal, lav: lav };
 }
 
-// CALCULER LE PRIX DU LAVAGE POUR LINGE ORDINAIRE
+// ============================================
+// CALCUL DU PRIX DE LAVAGE - LINGE ORDINAIRE
+// ============================================
 function calculerPrixLavageOrdinaire(poids, temperature) {
-    if (poids <= 0) return 0;
+    if (poids <= 0) return { prix: 0, lav: 0 };
     
     const grille = tarifs[temperature];
-    
-    // Calculer le nombre de tranches de 10kg
-    const quotient = Math.floor(poids / 10);
-    const reste = poids % 10;
-    
     let prixTotal = 0;
+    let lav = 0;
+    let poidsRestant = poids;
     
-    // Trouver le prix pour une tranche complète de 10kg
-    let prixTranche10kg = 0;
-    for (let tranche of grille) {
-        if (10 > tranche.min && 10 <= tranche.max) {
-            prixTranche10kg = tranche.prix;
-            break;
-        }
-    }
-    
-    // Ajouter le prix des tranches complètes
-    prixTotal += quotient * prixTranche10kg;
-    
-    // Trouver le prix pour le reste
-    if (reste > 0) {
+    while (poidsRestant > 0) {
+        let poidsTraite = Math.min(poidsRestant, 10);
+        
         for (let tranche of grille) {
-            if (reste > tranche.min && reste <= tranche.max) {
+            if (poidsTraite > tranche.min && poidsTraite <= tranche.max) {
                 prixTotal += tranche.prix;
+                lav += 1;
                 break;
             }
         }
+        
+        poidsRestant -= 10;
     }
     
-    return prixTotal;
+    return { prix: prixTotal, lav: lav };
 }
 
-// FONCTION PRINCIPALE DE CALCUL
+// ============================================
+// ✅ FONCTION PRINCIPALE - CYCLE DE 11 LAVAGES
+// ============================================
 function calculerPrixTotal() {
     const form = document.getElementById('commandeForm');
     const formData = new FormData(form);
     
     let prixLavageTotal = 0;
+    let lavTotal = 0;
     let poidsVolumineuxTotal = 0;
     let poidsOrdinaireTotal = 0;
     let poidsGrandTotal = 0;
     const detailsPoids = [];
     
-    // Liste des champs de poids
     const poidsFieldsVolumineux = [
         { name: 'a1_chaud', temp: 'chaud', label: 'Blanc Volumineux Chaud' },
         { name: 'a1_tiede', temp: 'tiede', label: 'Blanc Volumineux Tiède' },
@@ -210,79 +217,89 @@ function calculerPrixTotal() {
         { name: 'c2_froid', temp: 'froid', label: 'Couleur Foncée Ordinaire Froid' }
     ];
     
-    // Calculer le prix pour linge VOLUMINEUX
+    // Calculer linge VOLUMINEUX
     poidsFieldsVolumineux.forEach(field => {
         const poids = parseFloat(formData.get(field.name)) || 0;
         if (poids > 0) {
-            const prix = calculerPrixLavageVolumineux(poids, field.temp);
-            prixLavageTotal += prix;
+            const result = calculerPrixLavageVolumineux(poids, field.temp);
+            prixLavageTotal += result.prix;
+            lavTotal += result.lav;
+            
             poidsVolumineuxTotal += poids;
             poidsGrandTotal += poids;
             detailsPoids.push({
                 label: field.label,
                 poids: poids,
                 temperature: field.temp,
-                prix: prix,
+                prix: result.prix,
+                lav: result.lav,
                 type: 'volumineux'
             });
         }
     });
     
-    // Calculer le prix pour linge ORDINAIRE
+    // Calculer linge ORDINAIRE
     poidsFieldsOrdinaire.forEach(field => {
         const poids = parseFloat(formData.get(field.name)) || 0;
         if (poids > 0) {
-            const prix = calculerPrixLavageOrdinaire(poids, field.temp);
-            prixLavageTotal += prix;
+            const result = calculerPrixLavageOrdinaire(poids, field.temp);
+            prixLavageTotal += result.prix;
+            lavTotal += result.lav;
+            
             poidsOrdinaireTotal += poids;
             poidsGrandTotal += poids;
             detailsPoids.push({
                 label: field.label,
                 poids: poids,
                 temperature: field.temp,
-                prix: prix,
+                prix: result.prix,
+                lav: result.lav,
                 type: 'ordinaire'
             });
         }
     });
     
-    // SAUVEGARDER LE PRIX DE LAVAGE AVANT RÉDUCTION
-    const prixLavageSansReduction = prixLavageTotal;
+    console.log('Prix lavage AVANT réduction:', prixLavageTotal);
+    console.log('lav total:', lavTotal);
+    console.log('nombre_lavage client:', userNombreLavage);
     
-    // RÉDUCTION FIDÉLITÉ : ptf > 10 ET ptf % 10 === 1
-    const pointsFidelite = getPointsFidelite();
-    let reductionFidelite = 0;
-    if (pointsFidelite > 10 && pointsFidelite % 10 === 1) {
-        reductionFidelite = 2500;
-    }
+    // ============================================
+    // ✅ LOGIQUE FIDÉLITÉ - CYCLE DE 11 LAVAGES
+    // ============================================
+    const totalLavages = userNombreLavage + lavTotal;
+    const nombreReductions = Math.floor(totalLavages / 11);
+    const nouveauNombreLavage = totalLavages % 11;
+    const reductionFidelite = nombreReductions * 2500;
     
-    // PRIX SÉCHAGE
+    console.log('Total lavages:', totalLavages);
+    console.log('Nombre réductions:', nombreReductions);
+    console.log('Nouveau nombre_lavage:', nouveauNombreLavage);
+    console.log('Réduction appliquée:', reductionFidelite);
+    
+    // Appliquer la réduction sur le prix de lavage
+    const prixLavageFinal = Math.max(0, prixLavageTotal - reductionFidelite);
+    
+    console.log('Prix lavage APRÈS réduction:', prixLavageFinal);
+    
+    // Autres calculs
     const prixSechage = calculerPrixSechage(poidsGrandTotal);
-    
-    // PRIX PLIAGE
     const prixPliage = calculerPrixPliage(poidsGrandTotal);
-    
-    // PRIX REPASSAGE
     const prixRepassage = calculerPrixRepassage(poidsVolumineuxTotal, poidsOrdinaireTotal);
     
-    // PRIX COLLECTE/LIVRAISON (2 communes)
     const commune1 = formData.get('communeCollecte');
     const commune2 = formData.get('communeLivraison');
     const prixCollecte = (tarifsCommunePrix[commune1] || 0) + (tarifsCommunePrix[commune2] || 0);
     
-    // TOTAL : on applique la réduction sur le total final
-    const totalAvantReduction = prixLavageSansReduction + prixSechage + prixPliage + prixRepassage + prixCollecte;
-    const total = Math.max(0, totalAvantReduction - reductionFidelite);
+    const total = prixLavageFinal + prixSechage + prixPliage + prixRepassage + prixCollecte;
     
-    // Mettre à jour l'affichage
-    document.getElementById('prixLavageOutput').textContent = prixLavageSansReduction.toLocaleString();
+    // Mise à jour affichage
+    document.getElementById('prixLavageOutput').textContent = prixLavageTotal.toLocaleString();
     document.getElementById('prixSechageOutput').textContent = prixSechage.toLocaleString();
     document.getElementById('prixPliageOutput').textContent = prixPliage.toLocaleString();
     document.getElementById('prixRepassageOutput').textContent = prixRepassage.toLocaleString();
     document.getElementById('prixCollecteOutput').textContent = prixCollecte.toLocaleString();
     document.getElementById('totalPayerOutput').textContent = total.toLocaleString();
     
-    // Afficher la réduction fidélité si applicable
     const reductionElement = document.getElementById('reductionFidelite');
     if (reductionElement) {
         if (reductionFidelite > 0) {
@@ -297,7 +314,8 @@ function calculerPrixTotal() {
     }
     
     return {
-        prixLavage: prixLavageSansReduction,
+        prixLavage: prixLavageTotal,
+        prixLavageFinal: prixLavageFinal,
         prixSechage: prixSechage,
         prixPliage: prixPliage,
         prixRepassage: prixRepassage,
@@ -306,18 +324,20 @@ function calculerPrixTotal() {
         detailsPoids: detailsPoids,
         poidsTotal: poidsGrandTotal,
         reductionFidelite: reductionFidelite,
-        pointsFidelite: pointsFidelite
+        nombreLavageClient: userNombreLavage,
+        lav: lavTotal,
+        nouveauNombreLavage: nouveauNombreLavage
     };
 }
 
-// Initialisation au chargement de la page
+// ============================================
+// INITIALISATION
+// ============================================
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('commandeForm');
     
-    // Charger les points de fidélité de l'utilisateur
     loadUserPoints();
     
-    // Définir la date minimale comme aujourd'hui
     const today = new Date().toISOString().split('T')[0];
     
     const dateCollecte = document.getElementById('dateCollecte');
@@ -331,18 +351,15 @@ document.addEventListener('DOMContentLoaded', function() {
         dateLivraison.setAttribute('min', today);
     }
     
-    // Mettre à jour la date min de livraison quand la date de collecte change
     if (dateCollecte && dateLivraison) {
         dateCollecte.addEventListener('change', function() {
             const collecteDate = this.value;
             if (collecteDate) {
-                // La date de livraison doit être au minimum le jour après la collecte
                 const nextDay = new Date(collecteDate);
                 nextDay.setDate(nextDay.getDate() + 1);
                 const minDeliveryDate = nextDay.toISOString().split('T')[0];
                 dateLivraison.setAttribute('min', minDeliveryDate);
                 
-                // Si la date de livraison actuelle est antérieure, la réinitialiser
                 if (dateLivraison.value && dateLivraison.value <= collecteDate) {
                     dateLivraison.value = '';
                 }
@@ -350,27 +367,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Écouter tous les changements dans le formulaire pour recalculer
     form.addEventListener('input', calculerPrixTotal);
     form.addEventListener('change', calculerPrixTotal);
     
-    // Calculer initialement
     calculerPrixTotal();
     
-    // Gérer la soumission du formulaire
+    // ✅ SOUMISSION DU FORMULAIRE - REDIRECTION CORRIGÉE
     form.addEventListener('submit', function(event) {
         event.preventDefault();
         
         const formData = new FormData(form);
         const prix = calculerPrixTotal();
         
-        // Vérifier qu'au moins un poids est renseigné
         if (prix.prixLavage === 0 && prix.reductionFidelite === 0) {
             alert('Veuillez renseigner au moins un poids de linge.');
             return;
         }
         
-        // Vérifier que les dates sont valides et non antérieures à aujourd'hui
         const aujourdhui = new Date();
         aujourdhui.setHours(0, 0, 0, 0);
         
@@ -385,7 +398,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const dateCollecte = new Date(dateCollecteValue);
         const dateLivraison = new Date(dateLivraisonValue);
         
-        // Vérifier que les dates ne sont pas antérieures à aujourd'hui
         if (dateCollecte < aujourdhui) {
             alert('La date de collecte ne peut pas être antérieure à la date du jour.');
             return;
@@ -396,13 +408,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Vérifier que la date de livraison est après la date de collecte
         if (dateLivraison <= dateCollecte) {
             alert('La date de livraison doit être après la date de collecte.');
             return;
         }
         
-        // Préparer les données pour l'envoi
         const orderData = {
             nomClient: formData.get('nomClient'),
             telephone: formData.get('telephone'),
@@ -413,20 +423,13 @@ document.addEventListener('DOMContentLoaded', function() {
             dateLivraison: formData.get('dateLivraison'),
             communeLivraison: formData.get('communeLivraison'),
             poids: {},
-            prixLavage: prix.prixLavage,
-            prixSechage: prix.prixSechage,
-            prixPliage: prix.prixPliage,
-            prixRepassage: prix.prixRepassage,
-            prixCollecte: prix.prixCollecte,
-            total: prix.total,
             detailsPoids: JSON.stringify(prix.detailsPoids),
             poidsTotal: prix.poidsTotal,
-            reductionFidelite: prix.reductionFidelite,
-            pointsFidelite: prix.pointsFidelite,
+            nombreLavageClient: prix.nombreLavageClient,
+            lav: prix.lav,
             paiement: formData.get('paiement')
         };
         
-        // Ajouter tous les poids
         const poidsFields = [
             'a1_chaud', 'a1_tiede', 'a1_froid',
             'a2_chaud', 'a2_tiede', 'a2_froid',
@@ -441,7 +444,6 @@ document.addEventListener('DOMContentLoaded', function() {
             orderData.poids[field] = value;
         });
         
-        // Envoyer la commande au serveur
         fetch('process_order.php', {
             method: 'POST',
             headers: {
@@ -452,8 +454,8 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Rediriger vers la page de paiement
-                const paymentUrl = `payment.php?orderId=${data.orderId}&orderNumber=${encodeURIComponent(data.orderNumber)}&total=${prix.total}&lavage=${prix.prixLavage}&sechage=${prix.prixSechage}&pliage=${prix.prixPliage}&repassage=${prix.prixRepassage}&collecte=${prix.prixCollecte}&method=${orderData.paiement}`;
+                // ✅ Redirection avec le moyen de paiement sélectionné
+                const paymentUrl = `payment.php?orderId=${data.orderId}&orderNumber=${encodeURIComponent(data.orderNumber)}&method=${orderData.paiement}`;
                 window.location.href = paymentUrl;
             } else {
                 alert('Erreur : ' + data.message);
@@ -463,53 +465,5 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Erreur:', error);
             alert('Une erreur est survenue lors de l\'enregistrement de la commande.');
         });
-    });
-});
-// RESTRICTION DES DATES - À ajouter dans commandes.js ou avant la balise </body>
-
-// Fonction pour obtenir la date du jour au format YYYY-MM-DD
-function getDateAujourdhui() {
-    const aujourd = new Date();
-    const annee = aujourd.getFullYear();
-    const mois = String(aujourd.getMonth() + 1).padStart(2, '0');
-    const jour = String(aujourd.getDate()).padStart(2, '0');
-    return `${annee}-${mois}-${jour}`;
-}
-
-// Initialisation des restrictions de dates
-document.addEventListener('DOMContentLoaded', function() {
-    const dateCollecte = document.getElementById('dateCollecte');
-    const dateLivraison = document.getElementById('dateLivraison');
-    const dateMin = getDateAujourdhui();
-    
-    // Définir la date minimale pour la collecte (aujourd'hui)
-    dateCollecte.min = dateMin;
-    
-    // Définir la date minimale pour la livraison (aujourd'hui)
-    dateLivraison.min = dateMin;
-    
-    // Événement : Quand la date de collecte change
-    dateCollecte.addEventListener('change', function() {
-        const dateCollecteSelectionnee = this.value;
-        
-        // La date de livraison ne peut pas être avant la date de collecte
-        if (dateCollecteSelectionnee) {
-            dateLivraison.min = dateCollecteSelectionnee;
-            
-            // Si une date de livraison est déjà sélectionnée et qu'elle est antérieure
-            // à la nouvelle date de collecte, la réinitialiser
-            if (dateLivraison.value && dateLivraison.value < dateCollecteSelectionnee) {
-                dateLivraison.value = '';
-                alert('La date de livraison a été réinitialisée car elle était antérieure à la nouvelle date de collecte.');
-            }
-        }
-    });
-    
-    // Validation supplémentaire lors de la saisie manuelle
-    dateLivraison.addEventListener('change', function() {
-        if (dateCollecte.value && this.value < dateCollecte.value) {
-            alert('La date de livraison ne peut pas être antérieure à la date de collecte.');
-            this.value = '';
-        }
     });
 });
