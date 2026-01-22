@@ -1,13 +1,7 @@
 <?php
 /**
- * Script pour récupérer le nombre de lavages de l'utilisateur connecté
- * 
- * MODIFICATION SYSTÈME FIDÉLITÉ:
- * - Ancien: "points_counter" = points de fidélité
- * - Nouveau: "points_counter" = nombre de lavages effectués
- * 
- * Le champ BDD reste "points_counter" pour compatibilité,
- * mais représente maintenant le nombre total de lavages du client.
+ * ✅ Script pour récupérer le nombre de lavages (points de fidélité)
+ * Correction : Utilise points_counter qui représente le nombre de lavages
  */
 
 session_start();
@@ -22,8 +16,7 @@ try {
         echo json_encode([
             'success' => false,
             'message' => 'Utilisateur non connecté',
-            'nombre_lavage' => 0,
-            'points' => 0 // Rétrocompatibilité
+            'nombre_lavage' => 0
         ]);
         exit;
     }
@@ -32,7 +25,7 @@ try {
     
     $conn = getDBConnection();
     
-    // Récupérer le nombre de lavages de l'utilisateur
+    // ✅ Récupérer points_counter qui représente le nombre de lavages
     $stmt = $conn->prepare("SELECT points_counter FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
@@ -45,16 +38,14 @@ try {
     
     echo json_encode([
         'success' => true,
-        'nombre_lavage' => $nombreLavage,  // Nouveau nom
-        'points' => $nombreLavage          // Rétrocompatibilité
+        'nombre_lavage' => $nombreLavage
     ]);
     
 } catch (Exception $e) {
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage(),
-        'nombre_lavage' => 0,
-        'points' => 0
+        'nombre_lavage' => 0
     ]);
 }
 ?>

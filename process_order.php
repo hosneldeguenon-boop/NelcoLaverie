@@ -1,7 +1,7 @@
 <?php
 /**
  * ✅ TRAITEMENT COMMANDES - CYCLE FIDÉLITÉ 11 LAVAGES
- * Recalcule TOUT côté serveur - Ne fait JAMAIS confiance au frontend
+ * Correction : Lit depuis points_counter, calcule tout côté serveur
  */
 
 session_start();
@@ -40,9 +40,9 @@ try {
     $conn = getDBConnection();
     $conn->beginTransaction();
     
-    // Récupérer utilisateur
+    // ✅ Récupérer utilisateur avec points_counter
     $stmt = $conn->prepare("
-        SELECT customer_code, nombre_lavage 
+        SELECT customer_code, points_counter 
         FROM users 
         WHERE id = ? 
         FOR UPDATE
@@ -54,7 +54,8 @@ try {
         throw new Exception('Utilisateur introuvable');
     }
     
-    $ancienNombreLavage = intval($user['nombre_lavage']);
+    // ✅ points_counter = nombre de lavages
+    $ancienNombreLavage = intval($user['points_counter']);
     
     // ============================================
     // GRILLE TARIFAIRE
