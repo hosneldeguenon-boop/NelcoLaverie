@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Commentaires Clients</title>
+    <title>Avis Clients - NELCO LAVERIE</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
         * {
             margin: 0;
@@ -62,14 +62,14 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0,0,0,0.6);
             z-index: 1000;
             align-items: center;
             justify-content: center;
         }
 
-        .modal.active {
-            display: flex;
+        .modal.show {
+            display: flex !important;
         }
 
         .modal-content {
@@ -77,8 +77,20 @@
             padding: 30px;
             border-radius: 12px;
             width: 90%;
-            max-width: 400px;
+            max-width: 450px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
 
         .modal-header {
@@ -108,19 +120,19 @@
         .input-box input,
         .input-box textarea {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             font-family: inherit;
-            font-size: 13px;
-            transition: border-color 0.3s ease;
+            font-size: 14px;
+            transition: all 0.3s ease;
         }
 
         .input-box input:focus,
         .input-box textarea:focus {
             outline: none;
             border-color: #3b82f6;
-            box-shadow: 0 0 8px rgba(59,130,246,0.2);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
         }
 
         .input-box textarea {
@@ -133,27 +145,27 @@
             display: flex;
             gap: 10px;
             margin-bottom: 15px;
-            font-size: 28px;
+            font-size: 30px;
+            justify-content: center;
         }
 
         .star {
             cursor: pointer;
-            color: #ccc;
+            color: #ddd;
             transition: all 0.2s ease;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
 
         .star:hover,
-        .star.selected {
+        .star.active {
             color: #ffc107;
-            transform: scale(1.15);
-            text-shadow: 0 2px 4px rgba(255,193,7,0.3);
+            transform: scale(1.2);
         }
 
         .char-count {
             font-size: 11px;
             color: #999;
-            margin-top: 3px;
+            text-align: right;
+            margin-top: 5px;
         }
 
         .modal-actions {
@@ -162,56 +174,65 @@
             margin-top: 20px;
         }
 
-        .modal-btn {
+        .btn {
             flex: 1;
-            padding: 10px;
+            padding: 12px;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 14px;
             transition: all 0.3s ease;
         }
 
-        .submit-btn {
-            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #60a5fa);
             color: #fff;
         }
 
-        .submit-btn:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+            box-shadow: 0 4px 12px rgba(59,130,246,0.4);
         }
 
-        .cancel-btn {
-            background-color: #f0f0f0;
-            color: #333;
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
-        .cancel-btn:hover {
+        .btn-secondary {
+            background-color: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
             background-color: #e0e0e0;
         }
 
         .alert {
-            background-color: rgba(255,193,7,0.1);
-            border: 1px solid #ffc107;
-            color: #856404;
-            padding: 12px;
-            border-radius: 6px;
+            padding: 12px 15px;
+            border-radius: 8px;
             margin-bottom: 20px;
             display: none;
+            font-size: 14px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .alert.error {
-            background-color: rgba(255,107,107,0.1);
-            border-color: #ff6b6b;
-            color: #c92a2a;
+            background-color: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
         }
 
         .alert.success {
-            background-color: rgba(76,175,80,0.1);
-            border-color: #4caf50;
-            color: #2e7d32;
+            background-color: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
         }
 
         .comments-section {
@@ -222,27 +243,31 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
         .section-title {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: 700;
             color: #333;
         }
 
-        .write-comment-btn {
-            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        .write-btn {
+            background: linear-gradient(135deg, #3b82f6, #60a5fa);
             color: #fff;
             border: none;
-            padding: 10px 20px;
-            border-radius: 20px;
+            padding: 12px 24px;
+            border-radius: 25px;
             cursor: pointer;
             font-weight: 600;
+            font-size: 14px;
             transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .write-comment-btn:hover {
+        .write-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(59,130,246,0.3);
         }
@@ -250,28 +275,29 @@
         .comment-card {
             background: #fff;
             padding: 20px;
-            border-radius: 8px;
+            border-radius: 12px;
             border-left: 4px solid #3b82f6;
             margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             transition: all 0.3s ease;
         }
 
         .comment-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            transform: translateX(4px);
         }
 
         .comment-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
         .comment-user {
             font-weight: 700;
             color: #333;
-            font-size: 14px;
+            font-size: 15px;
         }
 
         .comment-meta {
@@ -279,6 +305,7 @@
             gap: 15px;
             align-items: center;
             font-size: 12px;
+            margin-top: 4px;
         }
 
         .comment-date {
@@ -286,36 +313,28 @@
         }
 
         .comment-rating {
-            display: flex;
-            gap: 2px;
-        }
-
-        .star-small {
             color: #ffc107;
-            font-size: 12px;
         }
 
         .comment-text {
             color: #555;
-            line-height: 1.6;
-            font-size: 13px;
-            word-break: break-word;
+            line-height: 1.7;
+            font-size: 14px;
         }
 
         .comment-actions {
             display: flex;
             gap: 10px;
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid #eee;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #f0f0f0;
         }
 
-        .edit-btn,
-        .delete-btn {
-            background-color: transparent;
+        .action-btn {
+            background: none;
             border: 1px solid #ddd;
             padding: 6px 12px;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 12px;
             transition: all 0.3s ease;
@@ -324,39 +343,67 @@
             gap: 5px;
         }
 
-        .edit-btn:hover {
+        .action-btn.edit:hover {
             border-color: #3b82f6;
             color: #3b82f6;
+            background: #f0f7ff;
         }
 
-        .delete-btn:hover {
-            border-color: #ff6b6b;
-            color: #ff6b6b;
+        .action-btn.delete:hover {
+            border-color: #ff4444;
+            color: #ff4444;
+            background: #fff5f5;
         }
 
         .empty-state {
             text-align: center;
-            padding: 40px 20px;
+            padding: 60px 20px;
             color: #999;
         }
 
         .empty-state i {
-            font-size: 40px;
-            margin-bottom: 15px;
-            opacity: 0.5;
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.4;
         }
 
         .loading {
             text-align: center;
-            padding: 20px;
+            padding: 40px;
             color: #999;
+        }
+
+        .auth-notice {
+            background: #f0f7ff;
+            border: 2px solid #3b82f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #2563eb;
+        }
+
+        .auth-notice i {
+            font-size: 20px;
+        }
+
+        .info-box {
+            background: #fffbea;
+            border-left: 4px solid #ffc107;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #856404;
         }
     </style>
 </head>
 <body>
     <div class="navbar">
-        <h1><i class="fas fa-comments"></i> Commentaires Clients</h1>
-        <a href="index.html">← Retour</a>
+        <h1><i class="fas fa-comments"></i> Avis Clients</h1>
+        <a href="index.html"><i class="fas fa-arrow-left"></i> Retour</a>
     </div>
 
     <div class="container">
@@ -365,584 +412,408 @@
         <div class="comments-section">
             <div class="section-header">
                 <h2 class="section-title">Avis des Clients</h2>
-                <button class="write-comment-btn" onclick="openCommentModal()">
-                    <i class="fas fa-pen"></i> Écrire un avis
+                <button class="write-btn" onclick="handleWriteClick()">
+                    <i class="fas fa-pen"></i>
+                    <span>Écrire un avis</span>
                 </button>
             </div>
 
             <div id="commentsContainer" class="loading">
-                <p>Chargement des commentaires...</p>
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Chargement des avis...</p>
             </div>
         </div>
     </div>
 
+    <!-- MODAL CONNEXION / COMMENTAIRE -->
     <div class="modal" id="commentModal">
         <div class="modal-content">
-            <span class="modal-close" onclick="closeCommentModal()">&times;</span>
-            <div class="modal-header">Ajouter un Avis</div>
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <h3 class="modal-header" id="modalTitle">Votre Avis</h3>
             
             <div class="alert" id="modalAlert"></div>
 
-            <div id="authForm" style="display: none;">
-                <p style="margin-bottom: 15px; font-size: 13px; color: #666;">
-                    Vous devez être connecté pour laisser un avis.
-                </p>
-                <div class="input-box">
-                    <input type="email" id="modalEmail" placeholder="Email" required>
+            <!-- FORMULAIRE CONNEXION -->
+            <div id="loginForm" style="display:none;">
+                <div class="auth-notice">
+                    <i class="fas fa-lock"></i>
+                    <span>Connectez-vous pour publier un avis</span>
+                </div>
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    Seuls les clients ayant passé commande peuvent laisser un avis
                 </div>
                 <div class="input-box">
-                    <input type="password" id="modalPassword" placeholder="Mot de passe" required>
+                    <input type="email" id="loginEmail" placeholder="Votre email" autocomplete="email">
                 </div>
-                <button class="modal-btn submit-btn" onclick="authenticateUser()">
-                    Se connecter
-                </button>
+                <div class="input-box">
+                    <input type="password" id="loginPassword" placeholder="Votre mot de passe" autocomplete="current-password">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+                    <button class="btn btn-primary" id="loginBtn" onclick="loginUser()">
+                        <i class="fas fa-sign-in-alt"></i> Connexion
+                    </button>
+                </div>
             </div>
 
-            <div id="commentForm" style="display: none;">
+            <!-- FORMULAIRE COMMENTAIRE -->
+            <div id="commentForm" style="display:none;">
                 <div class="input-box">
-                    <label style="font-size: 12px; font-weight: 600; color: #666; display: block; margin-bottom: 8px;">
-                        Votre Note (optionnel)
+                    <label style="display:block;margin-bottom:8px;font-weight:600;font-size:13px;color:#666;">
+                        Votre Note (optionnelle)
                     </label>
-                    <div class="star-rating" id="starRating">
-                        <span class="star" data-value="1">★</span>
-                        <span class="star" data-value="2">★</span>
-                        <span class="star" data-value="3">★</span>
-                        <span class="star" data-value="4">★</span>
-                        <span class="star" data-value="5">★</span>
+                    <div class="star-rating" id="stars">
+                        <span class="star" onclick="setRating(1)">★</span>
+                        <span class="star" onclick="setRating(2)">★</span>
+                        <span class="star" onclick="setRating(3)">★</span>
+                        <span class="star" onclick="setRating(4)">★</span>
+                        <span class="star" onclick="setRating(5)">★</span>
                     </div>
                 </div>
-
                 <div class="input-box">
-                    <label style="font-size: 12px; font-weight: 600; color: #666; display: block; margin-bottom: 8px;">
-                        Votre Avis
+                    <label style="display:block;margin-bottom:8px;font-weight:600;font-size:13px;color:#666;">
+                        Votre Commentaire *
                     </label>
-                    <textarea id="commentText" placeholder="Partagez votre expérience..." maxlength="500" required></textarea>
-                    <div class="char-count"><span id="charCount">0</span>/500</div>
+                    <textarea id="commentText" placeholder="Partagez votre expérience avec NELCO LAVERIE... (10-500 caractères)" maxlength="500" oninput="updateCharCount()"></textarea>
+                    <div class="char-count"><span id="charCount">0</span>/500 caractères</div>
                 </div>
-
+                <div class="info-box">
+                    <i class="fas fa-shield-alt"></i>
+                    Les commentaires contenant un langage vulgaire ou inapproprié seront automatiquement rejetés
+                </div>
                 <div class="modal-actions">
-                    <button class="modal-btn cancel-btn" onclick="closeCommentModal()">Annuler</button>
-                    <button class="modal-btn submit-btn" id="submitCommentBtn" onclick="submitComment()">Publier</button>
+                    <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+                    <button class="btn btn-primary" id="submitBtn" onclick="submitComment()">
+                        <i class="fas fa-paper-plane"></i> <span id="submitText">Publier</span>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        let currentRating = 0;
-        let currentUserId = null;
+        // VARIABLES GLOBALES
+        let userLoggedIn = false;
+        let userId = null;
+        let selectedRating = 0;
         let editingCommentId = null;
 
-        document.addEventListener('DOMContentLoaded', function() {
+        // INITIALISATION
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Initialisation page commentaires');
+            checkAuth();
             loadComments();
-            setupStarRating();
-            setupCharCount();
-            checkUserAuth();
         });
 
-        function checkUserAuth() {
-            fetch('check_user_auth.php')
-                .then(response => response.json())
-                .then(data => {
-                    currentUserId = data.user_id || null;
-                    if (currentUserId) {
-                        document.getElementById('authForm').style.display = 'none';
-                    }
-                });
+        // VÉRIFIER AUTHENTIFICATION
+        async function checkAuth() {
+            try {
+                const res = await fetch('check_user_auth.php?t=' + Date.now());
+                const data = await res.json();
+                
+                userLoggedIn = data.authenticated === true;
+                userId = data.user_id || null;
+                
+                console.log(userLoggedIn ? '✅ Connecté - User #' + userId : '❌ Non connecté');
+            } catch (err) {
+                console.error('⚠️ Erreur auth:', err);
+                userLoggedIn = false;
+                userId = null;
+            }
         }
 
-               // ============================================
-// Remplacez la fonction loadComments() dans comments.php
-// ============================================
-
-function loadComments() {
-    console.log('loadComments() appelée');
-    
-    const container = document.getElementById('commentsContainer');
-    if (!container) {
-        console.error('Container introuvable');
-        return;
-    }
-
-    container.innerHTML = '<div class="loading"><p>Chargement des commentaires...</p></div>';
-
-    fetch('get_comments.php')
-        .then(response => {
-            console.log('Réponse reçue:', response.status);
+        // GÉRER CLIC "ÉCRIRE UN AVIS"
+        function handleWriteClick() {
+            resetModal();
             
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+            if (userLoggedIn) {
+                showCommentForm();
+            } else {
+                showLoginForm();
             }
             
-            return response.json();
-        })
-        .then(data => {
-            console.log('Données reçues:', data);
-            
-            if (!data.success) {
-                throw new Error(data.message || 'Erreur inconnue');
-            }
+            document.getElementById('commentModal').classList.add('show');
+        }
 
-            const comments = data.comments || [];
-            console.log('Nombre de commentaires:', comments.length);
+        // AFFICHER FORMULAIRE CONNEXION
+        function showLoginForm() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('commentForm').style.display = 'none';
+            document.getElementById('modalTitle').textContent = 'Connexion Requise';
+        }
 
-            if (comments.length === 0) {
-                container.innerHTML = '<div class="empty-state"><i class="fas fa-comment-slash"></i><p>Aucun commentaire pour le moment</p></div>';
+        // AFFICHER FORMULAIRE COMMENTAIRE
+        function showCommentForm() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('commentForm').style.display = 'block';
+            document.getElementById('modalTitle').textContent = editingCommentId ? 'Modifier votre Avis' : 'Votre Avis';
+            document.getElementById('submitText').textContent = editingCommentId ? 'Modifier' : 'Publier';
+        }
+
+        // CONNEXION UTILISATEUR
+        async function loginUser() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const btn = document.getElementById('loginBtn');
+
+            if (!email || !password) {
+                showAlert('Veuillez remplir tous les champs', 'error', true);
                 return;
             }
 
-            // Construire le HTML des commentaires
-            const commentsHTML = comments.map(comment => {
-                // Formatage de la date
-                const date = new Date(comment.created_at);
-                const dateStr = date.toLocaleDateString('fr-FR', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connexion...';
+
+            try {
+                const res = await fetch('login.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password, remember: false})
                 });
 
-                // Affichage des étoiles si note existe
-                const rating = comment.rating && parseInt(comment.rating) > 0 ? 
-                    '<div class="comment-rating">' + 
-                    Array(parseInt(comment.rating)).fill('<i class="fas fa-star star-small"></i>').join('') + 
-                    '</div>' : '';
+                const data = await res.json();
 
-                // Boutons d'action si l'utilisateur est propriétaire
-                const isOwner = currentUserId && parseInt(currentUserId) === parseInt(comment.user_id);
-                const actions = isOwner ? `
-                    <div class="comment-actions">
-                        <button class="edit-btn" onclick="editComment(${comment.id}, '${comment.comment_text.replace(/'/g, "\\'")}', ${comment.rating || 0})">
-                            <i class="fas fa-edit"></i> Modifier
-                        </button>
-                        <button class="delete-btn" onclick="deleteComment(${comment.id})">
-                            <i class="fas fa-trash"></i> Supprimer
-                        </button>
-                    </div>
-                ` : '';
+                if (data.success) {
+                    userId = data.user.id;
+                    userLoggedIn = true;
+                    
+                    showAlert('✓ Connexion réussie !', 'success', true);
+                    
+                    setTimeout(() => {
+                        showCommentForm();
+                        document.getElementById('modalAlert').style.display = 'none';
+                    }, 1000);
+                } else {
+                    showAlert(data.message || 'Erreur de connexion', 'error', true);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Connexion';
+                }
+            } catch (err) {
+                console.error('⚠️ Erreur:', err);
+                showAlert('Erreur de connexion', 'error', true);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Connexion';
+            }
+        }
 
-                return `
-                    <div class="comment-card">
-                        <div class="comment-header">
-                            <div>
-                                <div class="comment-user">${comment.firstname} ${comment.lastname}</div>
-                                <div class="comment-meta">
-                                    <span class="comment-date">${dateStr}</span>
-                                    ${rating}
+        // SOUMETTRE / MODIFIER COMMENTAIRE
+        async function submitComment() {
+            const text = document.getElementById('commentText').value.trim();
+            const btn = document.getElementById('submitBtn');
+
+            // Validations
+            if (!text) {
+                showAlert('Veuillez écrire un commentaire', 'error', true);
+                return;
+            }
+
+            if (text.length < 10) {
+                showAlert('Le commentaire doit contenir au moins 10 caractères', 'error', true);
+                return;
+            }
+
+            btn.disabled = true;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Envoi...';
+
+            try {
+                const endpoint = editingCommentId ? 'update_comment.php' : 'add_comment.php';
+                const payload = {
+                    comment_text: text,
+                    rating: selectedRating > 0 ? selectedRating : null
+                };
+
+                if (editingCommentId) {
+                    payload.comment_id = editingCommentId;
+                }
+
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    showAlert('✓ ' + data.message, 'success', true);
+                    setTimeout(() => {
+                        closeModal();
+                        loadComments();
+                    }, 1500);
+                } else {
+                    showAlert(data.message, 'error', true);
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            } catch (err) {
+                console.error('⚠️ Erreur:', err);
+                showAlert('Erreur: ' + err.message, 'error', true);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        // CHARGER LES COMMENTAIRES
+        async function loadComments() {
+            const container = document.getElementById('commentsContainer');
+            container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Chargement...</p></div>';
+
+            try {
+                const res = await fetch('get_comments.php?t=' + Date.now());
+                const data = await res.json();
+
+                if (!data.success || !data.comments || data.comments.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-comments"></i>
+                            <p>Aucun avis pour le moment.<br>Soyez le premier à partager votre expérience !</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const html = data.comments.map(c => {
+                    const date = new Date(c.created_at).toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                    });
+
+                    const stars = c.rating > 0 ? '★'.repeat(c.rating) : '';
+                    const isOwner = userId && parseInt(userId) === parseInt(c.user_id);
+
+                    return `
+                        <div class="comment-card">
+                            <div class="comment-header">
+                                <div>
+                                    <div class="comment-user">${escapeHtml(c.firstname)} ${escapeHtml(c.lastname)}</div>
+                                    <div class="comment-meta">
+                                        <span class="comment-date">${date}</span>
+                                        ${stars ? `<span class="comment-rating">${stars}</span>` : ''}
+                                    </div>
                                 </div>
                             </div>
+                            <div class="comment-text">${escapeHtml(c.comment_text)}</div>
+                            ${isOwner ? `
+                                <div class="comment-actions">
+                                    <button class="action-btn edit" onclick='editComment(${c.id}, \`${c.comment_text.replace(/`/g, '\\`')}\`, ${c.rating || 0})'>
+                                        <i class="fas fa-edit"></i> Modifier
+                                    </button>
+                                    <button class="action-btn delete" onclick="deleteComment(${c.id})">
+                                        <i class="fas fa-trash"></i> Supprimer
+                                    </button>
+                                </div>
+                            ` : ''}
                         </div>
-                        <div class="comment-text">${escapeHtml(comment.comment_text)}</div>
-                        ${actions}
-                    </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
 
-            container.innerHTML = commentsHTML;
-            console.log('Commentaires affichés avec succès');
-
-        })
-        .catch(error => {
-            console.error('Erreur complète:', error);
-            container.innerHTML = `<div class="empty-state"><p>Erreur: ${error.message}</p></div>`;
-        });
-}
-
-// ============================================
-// Fonction utilitaire pour échapper le HTML
-// ============================================
-
-function escapeHtml(text) {
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, m => map[m]);
-}
-        function openCommentModal() {
-            const modal = document.getElementById('commentModal');
-            modal.classList.add('active');
-            resetForm();
-            
-            if (currentUserId) {
-                document.getElementById('authForm').style.display = 'none';
-                document.getElementById('commentForm').style.display = 'block';
-            } else {
-                document.getElementById('authForm').style.display = 'block';
-                document.getElementById('commentForm').style.display = 'none';
+                container.innerHTML = html;
+                console.log('✅ ' + data.comments.length + ' commentaires affichés');
+            } catch (err) {
+                console.error('⚠️ Erreur:', err);
+                container.innerHTML = '<div class="empty-state"><p>Erreur de chargement des commentaires</p></div>';
             }
         }
 
-        function closeCommentModal() {
-            document.getElementById('commentModal').classList.remove('active');
-            resetForm();
+        // ÉDITER UN COMMENTAIRE
+        function editComment(id, text, rating) {
+            editingCommentId = id;
+            selectedRating = rating;
+            document.getElementById('commentText').value = text;
+            updateCharCount();
+            updateStars();
+            handleWriteClick();
         }
 
-        function resetForm() {
-            document.getElementById('commentText').value = '';
-            currentRating = 0;
-            editingCommentId = null;
-            document.querySelectorAll('#starRating .star').forEach(star => {
-                star.classList.remove('selected');
+        // SUPPRIMER UN COMMENTAIRE
+        async function deleteComment(id) {
+            if (!confirm('Êtes-vous sûr de vouloir supprimer cet avis ?')) return;
+
+            try {
+                const res = await fetch('delete_user_comment.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({comment_id: id})
+                });
+
+                const data = await res.json();
+                
+                if (data.success) {
+                    showAlert('✓ ' + data.message, 'success');
+                    setTimeout(loadComments, 1000);
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            } catch (err) {
+                showAlert('Erreur lors de la suppression', 'error');
+            }
+        }
+
+        // SYSTÈME DE NOTATION (ÉTOILES)
+        function setRating(rating) {
+            selectedRating = rating;
+            updateStars();
+        }
+
+        function updateStars() {
+            document.querySelectorAll('.star').forEach((s, i) => {
+                s.classList.toggle('active', i < selectedRating);
             });
+        }
+
+        // COMPTEUR DE CARACTÈRES
+        function updateCharCount() {
+            const text = document.getElementById('commentText').value;
+            document.getElementById('charCount').textContent = text.length;
+        }
+
+        // GESTION MODAL
+        function closeModal() {
+            document.getElementById('commentModal').classList.remove('show');
+            resetModal();
+        }
+
+        function resetModal() {
+            document.getElementById('commentText').value = '';
+            document.getElementById('loginEmail').value = '';
+            document.getElementById('loginPassword').value = '';
             document.getElementById('charCount').textContent = '0';
             document.getElementById('modalAlert').style.display = 'none';
-            document.getElementById('submitCommentBtn').textContent = 'Publier';
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('submitBtn').innerHTML = '<i class="fas fa-paper-plane"></i> <span id="submitText">Publier</span>';
+            selectedRating = 0;
+            editingCommentId = null;
+            updateStars();
         }
 
-        function setupStarRating() {
-            const stars = document.querySelectorAll('#starRating .star');
-            stars.forEach(star => {
-                star.addEventListener('click', function() {
-                    currentRating = parseInt(this.dataset.value);
-                    stars.forEach((s, index) => {
-                        s.classList.toggle('selected', index < currentRating);
-                    });
-                });
-            });
-        }
-
-        function setupCharCount() {
-            const textarea = document.getElementById('commentText');
-            textarea.addEventListener('input', function() {
-                document.getElementById('charCount').textContent = this.value.length;
-            });
-        }
-
-             function authenticateUser() {
-    const email = document.getElementById('modalEmail').value;
-    const password = document.getElementById('modalPassword').value;
-
-    fetch('login.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password, remember: false })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // ✓ Vérifier les points
-            if (!data.user.points || data.user.points <= 0) {
-                showAlert('❌ Vous devez passer au moins une commande pour commenter', 'error', true);
-                return;
-            }
+        // AFFICHER ALERTE
+        function showAlert(msg, type, isModal = false) {
+            const alert = document.getElementById(isModal ? 'modalAlert' : 'alertBox');
+            alert.className = 'alert ' + type;
+            alert.textContent = msg;
+            alert.style.display = 'block';
             
-            currentUserId = data.user.id;
-            document.getElementById('authForm').style.display = 'none';
-            document.getElementById('commentForm').style.display = 'block';
-            showAlert('✓ Connecté avec succès !', 'success', true);
-        } else {
-            showAlert('Email ou mot de passe incorrect', 'error', true);
-        }
-    })
-    .catch(error => {
-        showAlert('Erreur de connexion', 'error', true);
-    });
-}
-
-         // ============================================
-// FICHIER: Dans comments.php - Remplacez la fonction submitComment()
-// ============================================
-
-function submitComment() {
-    const text = document.getElementById('commentText').value.trim();
-
-    // Validation basique
-    if (!text) {
-        showAlert('Veuillez écrire un avis', 'error', true);
-        return;
-    }
-
-    if (!currentUserId) {
-        showAlert('Vous devez être connecté pour publier', 'error', true);
-        return;
-    }
-
-    if (text.length < 10) {
-        showAlert('L\'avis doit contenir au moins 10 caractères', 'error', true);
-        return;
-    }
-
-    if (text.length > 500) {
-        showAlert('L\'avis ne peut pas dépasser 500 caractères', 'error', true);
-        return;
-    }
-
-    // Désactiver le bouton pour éviter les clics multiples
-    const submitBtn = document.getElementById('submitCommentBtn');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Envoi en cours...';
-
-    const payload = {
-        comment_text: text,
-        rating: currentRating > 0 ? currentRating : null
-    };
-
-    if (editingCommentId) {
-        payload.comment_id = editingCommentId;
-    }
-
-    const endpoint = editingCommentId ? 'update_comment.php' : 'add_comment.php';
-
-    console.log('Envoi vers:', endpoint);
-    console.log('Données:', payload);
-
-    fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(response => {
-        console.log('Réponse reçue:', response.status);
-        return response.json();
-    })
-    .then(data => {
-        console.log('Données reçues:', data);
-        
-        submitBtn.disabled = false;
-        submitBtn.textContent = editingCommentId ? 'Mettre à jour' : 'Publier';
-
-        if (data.success) {
-            showAlert(editingCommentId ? '✓ Avis modifié avec succès !' : '✓ Avis publié avec succès, merci !', 'success', true);
-            setTimeout(() => {
-                closeCommentModal();
-                loadComments();
-            }, 1500);
-        } else {
-            showAlert('Erreur : ' + (data.message || 'Erreur inconnue'), 'error', true);
-        }
-    })
-    .catch(error => {
-        console.error('Erreur complète:', error);
-        submitBtn.disabled = false;
-        submitBtn.textContent = editingCommentId ? 'Mettre à jour' : 'Publier';
-        showAlert('Erreur : ' + error.message, 'error', true);
-    });
-}
-
-// ============================================
-// BONUS: Améliorer la fonction showAlert()
-// ============================================
-
-function showAlert(message, type = 'error', isModal = false) {
-    const alert = isModal ? document.getElementById('modalAlert') : document.getElementById('alertBox');
-    
-    if (!alert) {
-        console.error('Élément alert non trouvé');
-        return;
-    }
-    
-    alert.textContent = message;
-    alert.className = 'alert ' + type;
-    alert.style.display = 'block';
-    
-    console.log('Alerte affichée:', message, type);
-    
-    if (type === 'success') {
-        setTimeout(() => {
-            alert.style.display = 'none';
-        }, 4000);
-    }
-}
-       // ============================================
-// Remplacez ces deux fonctions dans comments.php
-// ============================================
-
-function editComment(commentId, text, rating) {
-    console.log('editComment appelée:', commentId, text, rating);
-    
-    editingCommentId = commentId;
-    document.getElementById('commentText').value = text;
-    currentRating = parseInt(rating) || 0;
-    
-    // Mettre à jour les étoiles visuellement
-    const stars = document.querySelectorAll('#starRating .star');
-    stars.forEach((star, index) => {
-        star.classList.remove('selected');
-        if (index < currentRating) {
-            star.classList.add('selected');
-        }
-    });
-
-    document.getElementById('charCount').textContent = text.length;
-    document.getElementById('submitCommentBtn').textContent = 'Mettre à jour';
-    
-    // Ouvrir la modal
-    openCommentModal();
-}
-
-function deleteComment(commentId) {
-    console.log('deleteComment appelée:', commentId);
-    
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cet avis ?')) {
-        return;
-    }
-
-    fetch('delete_user_comment.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ comment_id: commentId })
-    })
-    .then(response => {
-        console.log('Réponse delete:', response.status);
-        return response.json();
-    })
-    .then(data => {
-        console.log('Réponse reçue:', data);
-        
-        if (data.success) {
-            showAlert('✓ Avis supprimé avec succès', 'success');
-            setTimeout(() => {
-                loadComments();
-            }, 1000);
-        } else {
-            showAlert('Erreur : ' + data.message, 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Erreur:', error);
-        showAlert('Erreur lors de la suppression', 'error');
-    });
-}
-
-// ============================================
-// Améliorez aussi submitComment() pour gérer les updates
-// ============================================
-
-function submitComment() {
-    const text = document.getElementById('commentText').value.trim();
-
-    // Validation basique
-    if (!text) {
-        showAlert('Veuillez écrire un avis', 'error', true);
-        return;
-    }
-
-    if (!currentUserId) {
-        showAlert('Vous devez être connecté pour publier', 'error', true);
-        return;
-    }
-
-    if (text.length < 10) {
-        showAlert('L\'avis doit contenir au moins 10 caractères', 'error', true);
-        return;
-    }
-
-    if (text.length > 500) {
-        showAlert('L\'avis ne peut pas dépasser 500 caractères', 'error', true);
-        return;
-    }
-
-    // Désactiver le bouton pour éviter les clics multiples
-    const submitBtn = document.getElementById('submitCommentBtn');
-    submitBtn.disabled = true;
-    
-    const isEditing = editingCommentId !== null;
-    submitBtn.textContent = isEditing ? 'Mise à jour en cours...' : 'Envoi en cours...';
-
-    const payload = {
-        comment_text: text,
-        rating: currentRating > 0 ? currentRating : null
-    };
-
-    // Si on modifie, ajouter l'ID
-    if (isEditing) {
-        payload.comment_id = editingCommentId;
-    }
-
-    const endpoint = isEditing ? 'update_comment.php' : 'add_comment.php';
-
-    console.log('Envoi vers:', endpoint);
-    console.log('Données:', payload);
-    console.log('Mode édition:', isEditing);
-
-    fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(response => {
-        console.log('Réponse reçue:', response.status);
-        return response.json();
-    })
-    .then(data => {
-        console.log('Données reçues:', data);
-        
-        submitBtn.disabled = false;
-        submitBtn.textContent = editingCommentId ? 'Mettre à jour' : 'Publier';
-
-        if (data.success) {
-            const message = isEditing ? 
-                '✓ Avis modifié avec succès !' : 
-                '✓ Avis publié avec succès, merci !';
-            showAlert(message, 'success', true);
-            
-            setTimeout(() => {
-                closeCommentModal();
-                loadComments();
-            }, 1500);
-        } else {
-            showAlert('Erreur : ' + (data.message || 'Erreur inconnue'), 'error', true);
-        }
-    })
-    .catch(error => {
-        console.error('Erreur complète:', error);
-        submitBtn.disabled = false;
-        submitBtn.textContent = editingCommentId ? 'Mettre à jour' : 'Publier';
-        showAlert('Erreur : ' + error.message, 'error', true);
-    });
-}
-
-// ============================================
-// Améliorez resetForm() pour bien réinitialiser
-// ============================================
-
-function resetForm() {
-    console.log('resetForm appelée');
-    
-    document.getElementById('commentText').value = '';
-    currentRating = 0;
-    editingCommentId = null;
-    
-    document.querySelectorAll('#starRating .star').forEach(star => {
-        star.classList.remove('selected');
-    });
-    
-    document.getElementById('charCount').textContent = '0';
-    document.getElementById('modalAlert').style.display = 'none';
-    document.getElementById('submitCommentBtn').textContent = 'Publier';
-    document.getElementById('submitCommentBtn').disabled = false;
-}
-
-                function showAlert(message, type = 'error', isModal = false) {
-    const alert = isModal ? document.getElementById('modalAlert') : document.getElementById('alertBox');
-    alert.innerHTML = message; // Permet le HTML/emojis
-    alert.className = 'alert ' + type;
-    alert.style.display = 'block';
-    
-    if (type === 'success') {
-        setTimeout(() => {
-            alert.style.display = 'none';
-        }, 3000);
-    }
-}
-
-        window.addEventListener('click', function(event) {
-            const modal = document.getElementById('commentModal');
-            if (event.target == modal) {
-                closeCommentModal();
+            if (type === 'success') {
+                setTimeout(() => alert.style.display = 'none', 4000);
             }
-        });
+        }
+
+        // ÉCHAPPER HTML (SÉCURITÉ)
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // FERMER MODAL EN CLIQUANT À L'EXTÉRIEUR
+        window.onclick = (e) => {
+            if (e.target.id === 'commentModal') {
+                closeModal();
+            }
+        };
     </script>
 </body>
 </html>

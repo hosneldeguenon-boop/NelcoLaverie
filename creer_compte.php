@@ -43,6 +43,7 @@
             max-width: 450px;
             border-radius: 20px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            margin-top: 170px;
         }
 
         section h1{
