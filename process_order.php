@@ -1,7 +1,7 @@
 <?php
 /**
  * ✅ TRAITEMENT COMMANDES - SYSTÈME BASÉ SUR NOMBRE DE LINGES
- * Cycle fidélité 11 lavages maintenu
+ * Cycle fidélité 11 lavages - VERSION FINALE AVEC CUSTOMER_CODE
  */
 
 session_start();
@@ -16,7 +16,7 @@ try {
 
     $userId = $_SESSION['user_id'];
     
-    // Récupération données
+    // Récupération données POST
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
     
@@ -24,24 +24,29 @@ try {
         throw new Exception('Données invalides');
     }
     
+    // Validation champs requis
     $requiredFields = [
         'nomClient', 'telephone', 'adresseCollecte', 'dateCollecte',
         'adresseLivraison', 'dateLivraison', 'paiement', 'linges'
     ];
     
     foreach ($requiredFields as $field) {
-        if (!isset($data[$field])) {
+        if (!isset($data[$field]) || (is_string($data[$field]) && trim($data[$field]) === '')) {
             throw new Exception("Le champ $field est requis");
         }
+    }
+    
+    if (!is_array($data['linges']) || empty($data['linges'])) {
+        throw new Exception('Aucun linge spécifié');
     }
     
     // Connexion BDD
     $conn = getDBConnection();
     $conn->beginTransaction();
     
-    // ✅ Récupérer utilisateur avec points_counter
+    // ✅ Récupérer utilisateur avec customer_code ET points_counter
     $stmt = $conn->prepare("
-        SELECT customer_code, points_counter 
+        SELECT id, email, firstname, lastname, phone, customer_code, points_counter 
         FROM users 
         WHERE id = ? 
         FOR UPDATE
@@ -53,17 +58,24 @@ try {
         throw new Exception('Utilisateur introuvable');
     }
     
-    // ✅ points_counter = nombre de lavages
+    // ✅ Récupérer customer_code et nombre de lavages
+    $customerCode = $user['customer_code'];
     $ancienNombreLavage = intval($user['points_counter']);
     
     // ============================================
-    // CHARGEMENT CONFIGURATION
+    // CHARGEMENT CONFIGURATION JSON
     // ============================================
-    $configJson = file_get_contents(__DIR__ . '/laverie_config.json');
+    $configPath = __DIR__ . '/laverie_config.json';
+    
+    if (!file_exists($configPath)) {
+        throw new Exception('Fichier de configuration introuvable');
+    }
+    
+    $configJson = file_get_contents($configPath);
     $config = json_decode($configJson, true);
     
-    if (!$config) {
-        throw new Exception('Erreur chargement configuration');
+    if (!$config || json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception('Erreur de lecture de la configuration: ' . json_last_error_msg());
     }
     
     // ============================================
@@ -77,7 +89,7 @@ try {
         $details = [];
         $nombreLavagesTotal = 0;
         
-        // Grouper par type_couleur_temperature
+        // Grouper par type_couleur_température
         $groupes = [];
         
         foreach ($linges as $item) {
@@ -160,38 +172,19 @@ try {
     function calculerPrixSechage($linges, $config) {
         if (empty($linges)) return 0;
         
-        // Calculer le poids total approximatif
         $poidsTotalKg = 0;
         foreach ($linges as $item) {
             $poidsTotalKg += $item['nombre'] * $item['proportionUnite'];
         }
         
-        // Trouver le palier approprié
         foreach ($config['tarifs_sechage'] as $palier) {
             if ($poidsTotalKg <= $palier['poids_max_kg']) {
                 return $palier['prix'];
             }
         }
         
-        // Si dépassement, calculer récursivement
         $dernierPalier = end($config['tarifs_sechage']);
-        $prixBase = $dernierPalier['prix'];
-        $poidsRestant = $poidsTotalKg - $dernierPalier['poids_max_kg'];
-        
-        return $prixBase + calculerPrixSechageRecursif($poidsRestant, $config);
-    }
-    
-    function calculerPrixSechageRecursif($poids, $config) {
-        if ($poids <= 0) return 0;
-        
-        foreach ($config['tarifs_sechage'] as $palier) {
-            if ($poids <= $palier['poids_max_kg']) {
-                return $palier['prix'];
-            }
-        }
-        
-        $dernierPalier = end($config['tarifs_sechage']);
-        return $dernierPalier['prix'] + calculerPrixSechageRecursif($poids - $dernierPalier['poids_max_kg'], $config);
+        return $dernierPalier['prix'];
     }
     
     /**
@@ -260,12 +253,8 @@ try {
     
     $linges = $data['linges'];
     
-    if (empty($linges)) {
-        throw new Exception('Aucun linge spécifié');
-    }
-    
     $lavageResult = calculerPrixLavage($linges, $config);
-    $prixLavageTotal = $lavageResult['prix'];
+    $prixLavageBrut = $lavageResult['prix'];
     $lavTotal = $lavageResult['lav'];
     
     // ============================================
@@ -276,20 +265,14 @@ try {
     $nouveauNombreLavage = $totalLavages % 11;
     $reductionFidelite = $nombreReductions * 2500;
     
-    // Appliquer réduction
-    $prixLavageFinal = max(0, $prixLavageTotal - $reductionFidelite);
+    // Appliquer réduction sur le prix de lavage
+    $prixLavageFinal = max(0, $prixLavageBrut - $reductionFidelite);
     
     // Autres calculs
     $prixSechage = calculerPrixSechage($linges, $config);
     $prixPliage = calculerPrixPliage($linges, $config);
     $prixRepassage = calculerPrixRepassage($linges, $config);
-    
-    // Prix collecte DÉSACTIVÉ
-    // $commune1 = $data['communeCollecte'] ?? '';
-    // $commune2 = $data['communeLivraison'] ?? '';
-    // $tarifsCommunePrix = ['godomey' => 500, 'cotonou' => 1000, 'calavi' => 800, 'autres' => 1500];
-    // $prixCollecte = ($tarifsCommunePrix[$commune1] ?? 0) + ($tarifsCommunePrix[$commune2] ?? 0);
-    $prixCollecte = 0;
+    $prixCollecte = 3000; // Prix fixe collecte/livraison
     
     $totalCommande = $prixLavageFinal + $prixSechage + $prixPliage + $prixRepassage + $prixCollecte;
     
@@ -306,9 +289,8 @@ try {
         'telephoneSaisi' => cleanInput($data['telephone']),
         'linges' => $linges,
         'detailsLavage' => $lavageResult['details'],
-        // 'communeCollecte' => $commune1,
-        // 'communeLivraison' => $commune2,
-        'prixLavageBrut' => $prixLavageTotal,
+        'prixLavageBrut' => $prixLavageBrut,
+        'prixLavage' => $prixLavageFinal,
         'prixSechage' => $prixSechage,
         'prixPliage' => $prixPliage,
         'prixRepassage' => $prixRepassage,
@@ -321,7 +303,15 @@ try {
     ];
     
     // ============================================
-    // INSERTION COMMANDE
+    // CALCUL POIDS TOTAL
+    // ============================================
+    $poidsTotal = 0;
+    foreach ($linges as $item) {
+        $poidsTotal += $item['nombre'] * $item['proportionUnite'];
+    }
+    
+    // ============================================
+    // ✅ INSERTION COMMANDE (AVEC customer_code)
     // ============================================
     $stmt = $conn->prepare("
         INSERT INTO orders (
@@ -344,6 +334,7 @@ try {
             order_details,
             payment_method,
             status,
+            points_at_order,
             nombre_lavage_commande,
             nombre_lavage_avant,
             nombre_lavage_apres
@@ -351,20 +342,14 @@ try {
             ?, ?, ?, 'lavage_complet',
             ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, 'pending', ?, ?, ?
+            ?, ?, 'pending', ?, ?, ?, ?
         )
     ");
-    
-    // Calcul poids total approximatif
-    $poidsTotal = 0;
-    foreach ($linges as $item) {
-        $poidsTotal += $item['nombre'] * $item['proportionUnite'];
-    }
     
     $stmt->execute([
         $userId,
         $orderNumber,
-        $user['customer_code'],
+        $customerCode, // ✅ Ajouté ici
         cleanInput($data['adresseCollecte']),
         $data['dateCollecte'],
         cleanInput($data['adresseLivraison']),
@@ -379,6 +364,7 @@ try {
         $poidsTotal,
         json_encode($orderDetails, JSON_UNESCAPED_UNICODE),
         cleanInput($data['paiement']),
+        $ancienNombreLavage,
         $lavTotal,
         $ancienNombreLavage,
         $nouveauNombreLavage
@@ -389,11 +375,13 @@ try {
     // Valider transaction
     $conn->commit();
     
+    // Réponse succès
     echo json_encode([
         'success' => true,
         'message' => 'Commande enregistrée avec succès',
         'orderId' => $orderId,
         'orderNumber' => $orderNumber,
+        'customerCode' => $customerCode,
         'debug' => [
             'ancienNombreLavage' => $ancienNombreLavage,
             'lavCommande' => $lavTotal,
@@ -401,22 +389,29 @@ try {
             'nombreReductions' => $nombreReductions,
             'nouveauNombreLavage' => $nouveauNombreLavage,
             'reductionFidelite' => $reductionFidelite,
-            'prixLavageBrut' => $prixLavageTotal,
-            'prixLavageFinal' => $prixLavageFinal
+            'prixLavageBrut' => $prixLavageBrut,
+            'prixLavageFinal' => $prixLavageFinal,
+            'totalCommande' => $totalCommande
         ]
-    ]);
+    ], JSON_UNESCAPED_UNICODE);
     
 } catch (Exception $e) {
+    // Rollback en cas d'erreur
     if (isset($conn) && $conn->inTransaction()) {
         $conn->rollBack();
     }
     
-    error_log("Erreur process_order: " . $e->getMessage());
+    // Log erreur
+    error_log("❌ Erreur process_order: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     
+    // Réponse erreur
     http_response_code(400);
     echo json_encode([
         'success' => false,
-        'message' => $e->getMessage()
-    ]);
+        'message' => $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine()
+    ], JSON_UNESCAPED_UNICODE);
 }
 ?>
