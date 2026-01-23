@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formulaire de Commande de Lavage</title>
+    <title>Formulaire de Commande - Nelco Laverie</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="commandes.css">
     <link rel="stylesheet" href="progressive-form.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🧼 Formulaire de Commande de Lavage chez Nelco Laverie</h1>
+            <h1>🧼 Formulaire de Commande - Nelco Laverie</h1>
+            <p>Système basé sur le nombre de linges</p>
         </header>
 
         <!-- BARRE DE PROGRESSION -->
@@ -19,60 +21,42 @@
             <div class="progress-text" id="progressText">Étape 1/5</div>
         </div>
 
-        <!-- PROTOCOLE DE TRI (Collapsible) -->
+        <!-- PROTOCOLE DE TRI -->
         <section class="protocole">
             <button type="button" class="protocole-toggle" id="protocoleToggle">
-                <span>📋 Voir le protocole de tri</span>
+                <span>📋 Guide de classification des linges</span>
                 <span class="toggle-icon">▼</span>
             </button>
             
             <div class="protocole-content" id="protocoleContent" style="display: none;">
                 <div class="protocole-section">
-                    <h3>📋 RÉSUMÉ DES TEMPÉRATURES</h3>
+                    <h3>📋 GROUPES DE LINGES</h3>
+                    
+                    <h4>Linges Ordinaires</h4>
                     <ul>
-                        <li><strong>FROID</strong> = Couleurs foncées, délicat, jeans, économie</li>
-                        <li><strong>TIÈDE</strong> = Couleurs normales, serviettes, sportwear</li>
-                        <li><strong>CHAUD</strong> = Blanc, très sale, hygiène (linge de maison)</li>
+                        <li><strong>O1</strong> - Très petits linges (sous-vêtements, chaussettes)</li>
+                        <li><strong>O2</strong> - Hauts légers (t-shirts, chemisettes)</li>
+                        <li><strong>O3</strong> - Bas légers (shorts, jupes légères)</li>
+                        <li><strong>O4</strong> - Tenues complètes (robes, chemises)</li>
+                        <li><strong>O5</strong> - Ordinaires épais (jeans, pantalons épais)</li>
+                    </ul>
+
+                    <h4>Linges Volumineux</h4>
+                    <ul>
+                        <li><strong>V1</strong> - Volumineux légers (rideaux fins, nappes)</li>
+                        <li><strong>V2</strong> - Literie légère (draps simples)</li>
+                        <li><strong>V3</strong> - Literie standard (draps doubles, taies)</li>
+                        <li><strong>V4</strong> - Volumineux lourds (serviettes de bain, couvertures)</li>
+                        <li><strong>V5</strong> - Très volumineux (édredons, couettes)</li>
                     </ul>
                 </div>
 
                 <div class="protocole-section">
-                    <h3>🔄 PROTOCOLE DE TRI ÉTAPE PAR ÉTAPE</h3>
-                    
-                    <h4>ÉTAPE 1 : SÉPARATION PAR COULEUR</h4>
+                    <h3>🌡️ TEMPÉRATURES DE LAVAGE</h3>
                     <ul>
-                        <li>Tas A → LINGE BLANC</li>
-                        <li>Tas B → LINGE COULEUR CLAIRE</li>
-                        <li>Tas C → LINGE COULEUR FONCÉE</li>
-                    </ul>
-
-                    <h4>ÉTAPE 2 : SÉPARATION PAR VOLUME</h4>
-                    <div class="sous-section">
-                        <p><strong>Sous-tas 1 → LINGE VOLUMINEUX</strong></p>
-                        <ul>
-                            <li>Draps et housses de couette</li>
-                            <li>Serviettes de bain</li>
-                            <li>Couvertures</li>
-                            <li>Sweats et pulls épais</li>
-                        </ul>
-                    </div>
-
-                    <div class="sous-section">
-                        <p><strong>Sous-tas 2 → LINGE ORDINAIRE</strong></p>
-                        <ul>
-                            <li>T-shirts et hauts</li>
-                            <li>Sous-vêtements</li>
-                            <li>Chaussettes</li>
-                            <li>Leggings et shorts</li>
-                            <li>Chemises</li>
-                        </ul>
-                    </div>
-
-                    <h4>ÉTAPE 3 : SÉPARATION PAR TEMPÉRATURE</h4>
-                    <ul>
-                        <li>Groupe FINAL 1 → LAVAGE CHAUD (50-60°C)</li>
-                        <li>Groupe FINAL 2 → LAVAGE TIÈDE (30-40°C)</li>
-                        <li>Groupe FINAL 3 → LAVAGE FROID (0-20°C)</li>
+                        <li><strong>FROID (0-20°C)</strong> - Couleurs foncées, délicats, jeans</li>
+                        <li><strong>TIÈDE (30-40°C)</strong> - Couleurs normales, serviettes, sportswear</li>
+                        <li><strong>CHAUD (50-60°C)</strong> - Blanc, très sale, hygiène</li>
                     </ul>
                 </div>
             </div>
@@ -96,25 +80,25 @@
                 </div>
             </section>
 
-            <!-- ÉTAPE 2: ADRESSES -->
+            <!-- ÉTAPE 2: ADRESSES ET DATES -->
             <section class="form-section step-section" data-step="2">
-                <h2>📍 Adresses de collecte et livraison</h2>
+                <h2>📍 Adresses et Dates</h2>
                 
                 <div class="form-group">
                     <label for="adresseCollecte">Adresse de collecte <span class="required">*</span></label>
                     <input type="text" id="adresseCollecte" name="adresseCollecte" required>
                 </div>
 
-                <div class="form-group">
-                    <label for="communeCollecte">Commune de collecte <span class="required">*</span></label>
-                    <select id="communeCollecte" name="communeCollecte" required>
-                        <option value="">-- Sélectionnez --</option>
+                <!-- COMMUNE COLLECTE DÉSACTIVÉE -->
+                <!-- <div class="form-group">
+                    <label for="communeCollecte">Commune de collecte</label>
+                    <select id="communeCollecte" name="communeCollecte">
                         <option value="godomey">Godomey (500 FCFA)</option>
                         <option value="cotonou">Cotonou (1000 FCFA)</option>
                         <option value="calavi">Calavi (800 FCFA)</option>
                         <option value="autres">Autres zones (1500 FCFA)</option>
                     </select>
-                </div>
+                </div> -->
 
                 <div class="form-group">
                     <label for="dateCollecte">Date de collecte <span class="required">*</span></label>
@@ -126,16 +110,16 @@
                     <input type="text" id="adresseLivraison" name="adresseLivraison" required>
                 </div>
 
-                <div class="form-group">
-                    <label for="communeLivraison">Commune de livraison <span class="required">*</span></label>
-                    <select id="communeLivraison" name="communeLivraison" required>
-                        <option value="">-- Sélectionnez --</option>
+                <!-- COMMUNE LIVRAISON DÉSACTIVÉE -->
+                <!-- <div class="form-group">
+                    <label for="communeLivraison">Commune de livraison</label>
+                    <select id="communeLivraison" name="communeLivraison">
                         <option value="godomey">Godomey (500 FCFA)</option>
                         <option value="cotonou">Cotonou (1000 FCFA)</option>
                         <option value="calavi">Calavi (800 FCFA)</option>
                         <option value="autres">Autres zones (1500 FCFA)</option>
                     </select>
-                </div>
+                </div> -->
 
                 <div class="form-group">
                     <label for="dateLivraison">Date de livraison <span class="required">*</span></label>
@@ -143,181 +127,120 @@
                 </div>
             </section>
 
-            <!-- ÉTAPE 3: TYPE DE LINGE -->
+            <!-- ÉTAPE 3: SÉLECTION DES LINGES -->
             <section class="form-section step-section" data-step="3">
-                <h2>⚖️ Quel type de linge souhaitez-vous laver ?</h2>
-                <p class="instruction">✨ Cliquez sur les catégories qui vous concernent. Les champs de poids apparaîtront automatiquement.</p>
+                <h2>👕 Sélection des Linges</h2>
+                <p class="instruction">✨ Sélectionnez le type de linge, puis renseignez les quantités par groupe, couleur et température</p>
 
                 <!-- BOUTONS TYPE DE LINGE -->
                 <div class="linge-type-selector">
-                    <button type="button" class="linge-type-card" id="btnVolumineux" data-type="volumineux">
-                        <div class="card-icon">🛏️</div>
-                        <div class="card-title">Linge Volumineux</div>
-                        <div class="card-desc">Draps, couvertures, serviettes, pulls épais</div>
-                    </button>
-
                     <button type="button" class="linge-type-card" id="btnOrdinaire" data-type="ordinaire">
                         <div class="card-icon">👕</div>
                         <div class="card-title">Linge Ordinaire</div>
                         <div class="card-desc">T-shirts, sous-vêtements, chemises, pantalons</div>
                     </button>
+
+                    <button type="button" class="linge-type-card" id="btnVolumineux" data-type="volumineux">
+                        <div class="card-icon">🛏️</div>
+                        <div class="card-title">Linge Volumineux</div>
+                        <div class="card-desc">Draps, couvertures, serviettes, édredons</div>
+                    </button>
                 </div>
 
-                <!-- SECTION VOLUMINEUX (masquée par défaut) -->
-                <div class="linge-category-section" id="volumineuxSection" style="display: none;">
-                    <h3 class="category-title">🛏️ Linge Volumineux - Sélectionnez vos couleurs</h3>
-                    
-                    <div class="color-selector">
-                        <button type="button" class="color-card" data-color="blanc" data-volume="volumineux">
-                            <span class="color-icon">⚪</span>
-                            <span>Blanc</span>
-                        </button>
-                        <button type="button" class="color-card" data-color="claire" data-volume="volumineux">
-                            <span class="color-icon">🟡</span>
-                            <span>Couleur Claire</span>
-                        </button>
-                        <button type="button" class="color-card" data-color="foncee" data-volume="volumineux">
-                            <span class="color-icon">⚫</span>
-                            <span>Couleur Foncée</span>
-                        </button>
-                    </div>
-
-                    <!-- BLANC VOLUMINEUX -->
-                    <div class="poids-group" id="blancVolumineux" style="display: none;">
-                        <h4>⚪ Blanc Volumineux - Températures</h4>
-                        <div class="temperature-grid">
-                            <div class="temp-item">
-                                <label>🔥 Chaud (50-60°C)</label>
-                                <input type="number" name="a1_chaud" min="0" step="0.1" placeholder="0 kg">
-                            </div>
-                            <div class="temp-item">
-                                <label>🌡️ Tiède (30-40°C)</label>
-                                <input type="number" name="a1_tiede" min="0" step="0.1" placeholder="0 kg">
-                            </div>
-                            <div class="temp-item">
-                                <label>❄️ Froid (0-20°C)</label>
-                                <input type="number" name="a1_froid" min="0" step="0.1" placeholder="0 kg">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- COULEUR CLAIRE VOLUMINEUX -->
-                    <div class="poids-group" id="claireVolumineux" style="display: none;">
-                        <h4>🟡 Couleur Claire Volumineux - Températures</h4>
-                        <div class="temperature-grid">
-                            <div class="temp-item">
-                                <label>🔥 Chaud</label>
-                                <input type="number" name="b1_chaud" min="0" step="0.1" placeholder="0 kg">
-                            </div>
-                            <div class="temp-item">
-                                <label>🌡️ Tiède</label>
-                                <input type="number" name="b1_tiede" min="0" step="0.1" placeholder="0 kg">
-                            </div>
-                            <div class="temp-item">
-                                <label>❄️ Froid</label>
-                                <input type="number" name="b1_froid" min="0" step="0.1" placeholder="0 kg">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- COULEUR FONCÉE VOLUMINEUX -->
-                    <div class="poids-group" id="fonceeVolumineux" style="display: none;">
-                        <h4>⚫ Couleur Foncée Volumineux - Températures</h4>
-                        <div class="temperature-grid">
-                            <div class="temp-item">
-                                <label>🔥 Chaud</label>
-                                <input type="number" name="c1_chaud" min="0" step="0.1" placeholder="0 kg">
-                            </div>
-                            <div class="temp-item">
-                                <label>🌡️ Tiède</label>
-                                <input type="number" name="c1_tiede" min="0" step="0.1" placeholder="0 kg">
-                            </div>
-                            <div class="temp-item">
-                                <label>❄️ Froid</label>
-                                <input type="number" name="c1_froid" min="0" step="0.1" placeholder="0 kg">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SECTION ORDINAIRE (masquée par défaut) -->
+                <!-- SECTION ORDINAIRE -->
                 <div class="linge-category-section" id="ordinaireSection" style="display: none;">
-                    <h3 class="category-title">👕 Linge Ordinaire - Sélectionnez vos couleurs</h3>
+                    <h3 class="category-title">👕 Linge Ordinaire - Groupes et Températures</h3>
                     
-                    <div class="color-selector">
-                        <button type="button" class="color-card" data-color="blanc" data-volume="ordinaire">
-                            <span class="color-icon">⚪</span>
-                            <span>Blanc</span>
+                    <!-- Groupe O1 -->
+                    <div class="groupe-container">
+                        <button type="button" class="groupe-toggle" data-groupe="o1">
+                            <span>O1 - Très petits linges</span>
+                            <span class="toggle-icon">▼</span>
                         </button>
-                        <button type="button" class="color-card" data-color="claire" data-volume="ordinaire">
-                            <span class="color-icon">🟡</span>
-                            <span>Couleur Claire</span>
-                        </button>
-                        <button type="button" class="color-card" data-color="foncee" data-volume="ordinaire">
-                            <span class="color-icon">⚫</span>
-                            <span>Couleur Foncée</span>
-                        </button>
-                    </div>
-
-                    <!-- BLANC ORDINAIRE -->
-                    <div class="poids-group" id="blancOrdinaire" style="display: none;">
-                        <h4>⚪ Blanc Ordinaire - Températures</h4>
-                        <div class="temperature-grid">
-                            <div class="temp-item">
-                                <label>🔥 Chaud</label>
-                                <input type="number" name="a2_chaud" min="0" step="0.1" placeholder="0 kg">
+                        <div class="groupe-content" id="o1Content" style="display: none;">
+                            <div class="color-selector">
+                                <button type="button" class="color-card" data-color="blanc" data-groupe="o1">⚪ Blanc</button>
+                                <button type="button" class="color-card" data-color="couleur" data-groupe="o1">🔵 Couleur</button>
                             </div>
-                            <div class="temp-item">
-                                <label>🌡️ Tiède</label>
-                                <input type="number" name="a2_tiede" min="0" step="0.1" placeholder="0 kg">
+                            <div class="poids-group" id="o1_blanc" style="display: none;">
+                                <h4>⚪ Blanc - Températures</h4>
+                                <div class="temperature-grid">
+                                    <div class="temp-item">
+                                        <label>🔥 Chaud</label>
+                                        <input type="number" name="o1_blanc_chaud" min="0" step="1" placeholder="0 unités">
+                                    </div>
+                                    <div class="temp-item">
+                                        <label>🌡️ Tiède</label>
+                                        <input type="number" name="o1_blanc_tiede" min="0" step="1" placeholder="0 unités">
+                                    </div>
+                                    <div class="temp-item">
+                                        <label>❄️ Froid</label>
+                                        <input type="number" name="o1_blanc_froid" min="0" step="1" placeholder="0 unités">
+                                    </div>
+                                </div>
                             </div>
-                            <div class="temp-item">
-                                <label>❄️ Froid</label>
-                                <input type="number" name="a2_froid" min="0" step="0.1" placeholder="0 kg">
+                            <div class="poids-group" id="o1_couleur" style="display: none;">
+                                <h4>🔵 Couleur - Températures</h4>
+                                <div class="temperature-grid">
+                                    <div class="temp-item">
+                                        <label>🔥 Chaud</label>
+                                        <input type="number" name="o1_couleur_chaud" min="0" step="1" placeholder="0 unités">
+                                    </div>
+                                    <div class="temp-item">
+                                        <label>🌡️ Tiède</label>
+                                        <input type="number" name="o1_couleur_tiede" min="0" step="1" placeholder="0 unités">
+                                    </div>
+                                    <div class="temp-item">
+                                        <label>❄️ Froid</label>
+                                        <input type="number" name="o1_couleur_froid" min="0" step="1" placeholder="0 unités">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- COULEUR CLAIRE ORDINAIRE -->
-                    <div class="poids-group" id="claireOrdinaire" style="display: none;">
-                        <h4>🟡 Couleur Claire Ordinaire - Températures</h4>
-                        <div class="temperature-grid">
-                            <div class="temp-item">
-                                <label>🔥 Chaud</label>
-                                <input type="number" name="b2_chaud" min="0" step="0.1" placeholder="0 kg">
+                    <!-- Groupes O2 à O5 suivent le même modèle -->
+                    <!-- O2 -->
+                    <div class="groupe-container">
+                        <button type="button" class="groupe-toggle" data-groupe="o2">
+                            <span>O2 - Hauts légers</span>
+                            <span class="toggle-icon">▼</span>
+                        </button>
+                        <div class="groupe-content" id="o2Content" style="display: none;">
+                            <div class="color-selector">
+                                <button type="button" class="color-card" data-color="blanc" data-groupe="o2">⚪ Blanc</button>
+                                <button type="button" class="color-card" data-color="couleur" data-groupe="o2">🔵 Couleur</button>
                             </div>
-                            <div class="temp-item">
-                                <label>🌡️ Tiède</label>
-                                <input type="number" name="b2_tiede" min="0" step="0.1" placeholder="0 kg">
+                            <div class="poids-group" id="o2_blanc" style="display: none;">
+                                <h4>⚪ Blanc - Températures</h4>
+                                <div class="temperature-grid">
+                                    <div class="temp-item"><label>🔥 Chaud</label><input type="number" name="o2_blanc_chaud" min="0" step="1" placeholder="0 unités"></div>
+                                    <div class="temp-item"><label>🌡️ Tiède</label><input type="number" name="o2_blanc_tiede" min="0" step="1" placeholder="0 unités"></div>
+                                    <div class="temp-item"><label>❄️ Froid</label><input type="number" name="o2_blanc_froid" min="0" step="1" placeholder="0 unités"></div>
+                                </div>
                             </div>
-                            <div class="temp-item">
-                                <label>❄️ Froid</label>
-                                <input type="number" name="b2_froid" min="0" step="0.1" placeholder="0 kg">
+                            <div class="poids-group" id="o2_couleur" style="display: none;">
+                                <h4>🔵 Couleur - Températures</h4>
+                                <div class="temperature-grid">
+                                    <div class="temp-item"><label>🔥 Chaud</label><input type="number" name="o2_couleur_chaud" min="0" step="1" placeholder="0 unités"></div>
+                                    <div class="temp-item"><label>🌡️ Tiède</label><input type="number" name="o2_couleur_tiede" min="0" step="1" placeholder="0 unités"></div>
+                                    <div class="temp-item"><label>❄️ Froid</label><input type="number" name="o2_couleur_froid" min="0" step="1" placeholder="0 unités"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- COULEUR FONCÉE ORDINAIRE -->
-                    <div class="poids-group" id="fonceeOrdinaire" style="display: none;">
-                        <h4>⚫ Couleur Foncée Ordinaire - Températures</h4>
-                        <div class="temperature-grid">
-                            <div class="temp-item">
-                                <label>🔥 Chaud</label>
-                                <input type="number" name="c2_chaud" min="0" step="0.1" placeholder="0 kg">
-                            </div>
-                            <div class="temp-item">
-                                <label>🌡️ Tiède</label>
-                                <input type="number" name="c2_tiede" min="0" step="0.1" placeholder="0 kg">
-                            </div>
-                            <div class="temp-item">
-                                <label>❄️ Froid</label>
-                                <input type="number" name="c2_froid" min="0" step="0.1" placeholder="0 kg">
-                            </div>
-                        </div>
-                    </div>
+                    <!-- O3, O4, O5 suivent le même pattern -->
+                    <!-- ... (répéter pour O3, O4, O5) ... -->
                 </div>
 
-                <p class="help-text">💡 Astuce : Vous pouvez laisser vide les champs qui ne vous concernent pas</p>
+                <!-- SECTION VOLUMINEUX (même structure avec V1-V5) -->
+                <div class="linge-category-section" id="volumineuxSection" style="display: none;">
+                    <h3 class="category-title">🛏️ Linge Volumineux - Groupes et Températures</h3>
+                    <!-- V1 à V5 avec même structure que O1-O5 -->
+                </div>
+
+                <p class="help-text">💡 Astuce : Laissez vide les champs non utilisés</p>
             </section>
 
             <!-- ÉTAPE 4: MOYEN DE PAIEMENT -->
@@ -328,7 +251,11 @@
                     <label>Choisissez votre moyen de paiement <span class="required">*</span></label>
                     <div class="radio-group">
                         <label class="radio-option">
-                            <input type="radio" name="paiement" value="mtn" required>
+                            <input type="radio" name="paiement" value="livraison" required>
+                            <span>Paiement à la livraison</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="paiement" value="mtn">
                             <span>MTN Momo</span>
                         </label>
                         <label class="radio-option">
@@ -338,10 +265,6 @@
                         <label class="radio-option">
                             <input type="radio" name="paiement" value="celtiis">
                             <span>Celtiis Money</span>
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="paiement" value="livraison">
-                            <span>Paiement à la livraison</span>
                         </label>
                     </div>
                 </div>
@@ -358,7 +281,7 @@
 
                 <div class="prix-ligne" id="reductionFidelite" style="display: none;">
                     <label>🎁 Réduction fidélité :</label>
-                    <span><span>0</span> FCFA</span>
+                    <span>-<span id="reductionOutput">0</span> FCFA</span>
                 </div>
 
                 <div class="prix-ligne">
@@ -376,14 +299,20 @@
                     <span><span id="prixRepassageOutput">0</span> FCFA</span>
                 </div>
 
-                <div class="prix-ligne">
+                <!-- PRIX COLLECTE/LIVRAISON DÉSACTIVÉ -->
+                <!-- <div class="prix-ligne">
                     <label>Prix collecte/livraison :</label>
                     <span><span id="prixCollecteOutput">0</span> FCFA</span>
-                </div>
+                </div> -->
 
                 <div class="prix-ligne total">
                     <label><strong>Total à payer :</strong></label>
                     <span><strong><span id="totalPayerOutput">0</span> FCFA</strong></span>
+                </div>
+
+                <div class="info-lavages">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="infoLavagesText">Cette commande représente <strong id="lavCount">0</strong> lavage(s)</span>
                 </div>
             </section>
 

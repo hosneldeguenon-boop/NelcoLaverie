@@ -1,0 +1,107 @@
+{
+  "machines": {
+    "ordinaire": {
+      "capacite_kg": 8,
+      "seuil_remplissage": 0.9
+    },
+    "volumineux": {
+      "capacite_kg": 10,
+      "seuil_remplissage": 0.9
+    }
+  },
+
+  "tarifs_lavage": {
+    "ordinaire": {
+      "chaud": 3500,
+      "tiede": 3000,
+      "froid": 2500
+    },
+    "volumineux": {
+      "chaud": 7000,
+      "tiede": 6000,
+      "froid": 5000
+    }
+  },
+
+  "groupes_linges": {
+    "ordinaires": {
+      "O1": {
+        "description": "Très petits linges",
+        "proportion_unite": 0.10,
+        "palier_sechage_kg": 2
+      },
+      "O2": {
+        "description": "Hauts légers",
+        "proportion_unite": 0.65,
+        "palier_sechage_kg": 2
+      },
+      "O3": {
+        "description": "Bas légers",
+        "proportion_unite": 1.30,
+        "palier_sechage_kg": 2
+      },
+      "O4": {
+        "description": "Tenues complètes",
+        "proportion_unite": 1.15,
+        "palier_sechage_kg": 2
+      },
+      "O5": {
+        "description": "Ordinaires épais",
+        "proportion_unite": 2.10,
+        "palier_sechage_kg": 3
+      }
+    },
+    "volumineux": {
+      "V1": {
+        "description": "Volumineux légers",
+        "proportion_unite": 1.95,
+        "palier_sechage_kg": 2
+      },
+      "V2": {
+        "description": "Literie légère",
+        "proportion_unite": 1.90,
+        "palier_sechage_kg": 2
+      },
+      "V3": {
+        "description": "Literie standard",
+        "proportion_unite": 3.10,
+        "palier_sechage_kg": 4
+      },
+      "V4": {
+        "description": "Volumineux lourds",
+        "proportion_unite": 5.30,
+        "palier_sechage_kg": 8
+      },
+      "V5": {
+        "description": "Très volumineux",
+        "proportion_unite": 7.90,
+        "palier_sechage_kg": 8
+      }
+    }
+  },
+
+  "tarifs_sechage": [
+    {"poids_max_kg": 2, "prix": 1000},
+    {"poids_max_kg": 3, "prix": 1500},
+    {"poids_max_kg": 4, "prix": 2000},
+    {"poids_max_kg": 6, "prix": 2500},
+    {"poids_max_kg": 8, "prix": 3000}
+  ],
+
+  "pliage": {
+    "poids_par_unite_ordinaire": 0.8,
+    "poids_par_unite_volumineux": 2.5,
+    "palier_kg": 8,
+    "prix_par_palier": 500,
+    "minimum_kg": 4
+  },
+
+  "repassage": {
+    "poids_par_unite_ordinaire": 0.8,
+    "poids_par_unite_volumineux": 2.5,
+    "palier_ordinaire_kg": 4,
+    "prix_palier_ordinaire": 150,
+    "palier_volumineux_kg": 4,
+    "prix_palier_volumineux": 200
+  }
+}

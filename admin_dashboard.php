@@ -347,7 +347,7 @@ try {
                     <i class="fas fa-list"></i>
                     Gérer les commandes
                 </a>
-                <a href="admin/view_users.php" class="action-btn">
+                <a href="admin/view_users_v2.php" class="action-btn">
                     <i class="fas fa-users-cog"></i>
                     Voir les utilisateurs
                 </a>

@@ -1,50 +1,34 @@
 // ============================================
-// GRILLE TARIFAIRE COMPLÈTE
+// CONFIGURATION - Chargée depuis JSON
 // ============================================
-const tarifs = {
-    froid: [
-        { min: 0, max: 6, prix: 2500 },
-        { min: 6, max: 8, prix: 3000 },
-        { min: 8, max: 10, prix: 5000 }
-    ],
-    tiede: [
-        { min: 0, max: 6, prix: 3000 },
-        { min: 6, max: 8, prix: 3500 },
-        { min: 8, max: 10, prix: 6000 }
-    ],
-    chaud: [
-        { min: 0, max: 6, prix: 3500 },
-        { min: 6, max: 8, prix: 4000 },
-        { min: 8, max: 10, prix: 7000 }
-    ]
-};
-
-const tarifsCommunePrix = {
-    godomey: 500,
-    cotonou: 1000,
-    calavi: 800,
-    autres: 1500
-};
-
-// ============================================
-// ✅ SYSTÈME DE FIDÉLITÉ - CYCLE DE 11 LAVAGES
-// ============================================
+let CONFIG = null;
 let userNombreLavage = 0;
 
-function getNombreLavage() {
-    return userNombreLavage;
+// Charger la configuration
+async function loadConfig() {
+    try {
+        const response = await fetch('laverie_config.json');
+        CONFIG = await response.json();
+        console.log('✅ Configuration chargée:', CONFIG);
+    } catch (error) {
+        console.error('❌ Erreur chargement config:', error);
+        alert('Erreur de chargement de la configuration');
+    }
 }
 
+// ============================================
+// SYSTÈME DE FIDÉLITÉ - CYCLE DE 11 LAVAGES
+// ============================================
 function loadUserPoints() {
     fetch('get_user_points.php')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 userNombreLavage = parseInt(data.nombre_lavage) || 0;
-                console.log('Nombre de lavages chargé:', userNombreLavage);
+                console.log('📊 Nombre de lavages client:', userNombreLavage);
                 calculerPrixTotal();
             } else {
-                console.error('Erreur chargement nombre de lavages:', data.message);
+                console.error('Erreur chargement points:', data.message);
                 userNombreLavage = 0;
             }
         })
@@ -55,33 +39,151 @@ function loadUserPoints() {
 }
 
 // ============================================
+// CALCUL DU NOMBRE DE LAVAGES REQUIS
+// ============================================
+function calculerNombreLavages(linges) {
+    if (!CONFIG) return { nombreLavages: 0, details: [] };
+    
+    const details = [];
+    let nombreLavagesTotal = 0;
+    
+    // Grouper par type_couleur_temperature
+    const groupes = {};
+    
+    linges.forEach(item => {
+        const cle = `${item.type}_${item.couleur}_${item.temperature}`;
+        if (!groupes[cle]) {
+            groupes[cle] = {
+                type: item.type,
+                couleur: item.couleur,
+                temperature: item.temperature,
+                proportionTotale: 0,
+                items: []
+            };
+        }
+        
+        const proportion = item.nombre * item.proportionUnite;
+        groupes[cle].proportionTotale += proportion;
+        groupes[cle].items.push({
+            groupe: item.groupe,
+            nombre: item.nombre,
+            proportion: proportion
+        });
+    });
+    
+    // Calculer le nombre de lavages pour chaque groupe
+    for (const [cle, groupe] of Object.entries(groupes)) {
+        const seuil = CONFIG.machines[groupe.type].seuil_remplissage;
+        const capacite = CONFIG.machines[groupe.type].capacite_kg;
+        const proportionUtile = capacite * seuil;
+        
+        const quotient = Math.floor(groupe.proportionTotale / proportionUtile);
+        const reste = groupe.proportionTotale % proportionUtile;
+        
+        const nombreLavages = quotient + (reste > 0 ? 1 : 0);
+        
+        nombreLavagesTotal += nombreLavages;
+        
+        details.push({
+            cle: cle,
+            type: groupe.type,
+            couleur: groupe.couleur,
+            temperature: groupe.temperature,
+            proportionTotale: groupe.proportionTotale,
+            nombreLavages: nombreLavages,
+            items: groupe.items
+        });
+    }
+    
+    return { nombreLavages: nombreLavagesTotal, details: details };
+}
+
+// ============================================
+// CALCUL DU PRIX DE LAVAGE
+// ============================================
+function calculerPrixLavage(linges) {
+    if (!CONFIG || linges.length === 0) return { prix: 0, lav: 0, details: [] };
+    
+    const resultatsLavage = calculerNombreLavages(linges);
+    let prixTotal = 0;
+    
+    resultatsLavage.details.forEach(detail => {
+        const tarif = CONFIG.tarifs_lavage[detail.type][detail.temperature];
+        const prix = detail.nombreLavages * tarif;
+        prixTotal += prix;
+        
+        detail.prix = prix;
+        detail.tarif = tarif;
+    });
+    
+    return {
+        prix: prixTotal,
+        lav: resultatsLavage.nombreLavages,
+        details: resultatsLavage.details
+    };
+}
+
+// ============================================
 // CALCUL DU PRIX DE SÉCHAGE
 // ============================================
-function calculerPrixSechage(poids) {
+function calculerPrixSechage(linges) {
+    if (!CONFIG || linges.length === 0) return 0;
+    
+    // Calculer le poids total approximatif
+    let poidsTotalKg = 0;
+    linges.forEach(item => {
+        poidsTotalKg += item.nombre * item.proportionUnite;
+    });
+    
+    // Trouver le palier de tarif approprié
+    for (const palier of CONFIG.tarifs_sechage) {
+        if (poidsTotalKg <= palier.poids_max_kg) {
+            return palier.prix;
+        }
+    }
+    
+    // Si dépassement du dernier palier, calculer récursivement
+    const dernierPalier = CONFIG.tarifs_sechage[CONFIG.tarifs_sechage.length - 1];
+    const prixBase = dernierPalier.prix;
+    const poidsRestant = poidsTotalKg - dernierPalier.poids_max_kg;
+    
+    return prixBase + calculerPrixSechageRecursif(poidsRestant);
+}
+
+function calculerPrixSechageRecursif(poids) {
     if (poids <= 0) return 0;
     
-    if (poids <= 2) return 1000;
-    if (poids <= 3) return 1500;
-    if (poids <= 4) return 2000;
-    if (poids <= 6) return 2500;
-    if (poids <= 8) return 3000;
+    for (const palier of CONFIG.tarifs_sechage) {
+        if (poids <= palier.poids_max_kg) {
+            return palier.prix;
+        }
+    }
     
-    return 3000 + calculerPrixSechage(poids - 8);
+    const dernierPalier = CONFIG.tarifs_sechage[CONFIG.tarifs_sechage.length - 1];
+    return dernierPalier.prix + calculerPrixSechageRecursif(poids - dernierPalier.poids_max_kg);
 }
 
 // ============================================
 // CALCUL DU PRIX DE PLIAGE
 // ============================================
-function calculerPrixPliage(poidsTotal) {
-    if (poidsTotal < 4) return 0;
+function calculerPrixPliage(linges) {
+    if (!CONFIG || linges.length === 0) return 0;
     
-    const quotient = Math.floor(poidsTotal / 8);
-    const reste = poidsTotal % 8;
+    // Convertir nombre en poids approximatif
+    let poidsTotalKg = 0;
+    linges.forEach(item => {
+        poidsTotalKg += item.nombre * item.proportionUnite;
+    });
     
-    let prix = quotient * 500;
+    if (poidsTotalKg < CONFIG.pliage.minimum_kg) return 0;
     
-    if (reste >= 4) {
-        prix += 500;
+    const quotient = Math.floor(poidsTotalKg / CONFIG.pliage.palier_kg);
+    const reste = poidsTotalKg % CONFIG.pliage.palier_kg;
+    
+    let prix = quotient * CONFIG.pliage.prix_par_palier;
+    
+    if (reste >= CONFIG.pliage.minimum_kg) {
+        prix += CONFIG.pliage.prix_par_palier;
     }
     
     return prix;
@@ -90,239 +192,187 @@ function calculerPrixPliage(poidsTotal) {
 // ============================================
 // CALCUL DU PRIX DE REPASSAGE
 // ============================================
-function calculerPrixRepassage(poidsVolumineux, poidsOrdinaire) {
+function calculerPrixRepassage(linges) {
+    if (!CONFIG || linges.length === 0) return 0;
+    
+    let poidsOrdinaireKg = 0;
+    let poidsVolumineuxKg = 0;
+    
+    linges.forEach(item => {
+        const poids = item.nombre * item.proportionUnite;
+        if (item.type === 'ordinaire') {
+            poidsOrdinaireKg += poids;
+        } else {
+            poidsVolumineuxKg += poids;
+        }
+    });
+    
     let prixTotal = 0;
     
-    if (poidsVolumineux >= 4) {
-        const tranchesVolumineux = Math.floor(poidsVolumineux / 4);
-        prixTotal += tranchesVolumineux * 200;
+    // Repassage ordinaire
+    if (poidsOrdinaireKg >= CONFIG.repassage.palier_ordinaire_kg) {
+        const tranches = Math.floor(poidsOrdinaireKg / CONFIG.repassage.palier_ordinaire_kg);
+        prixTotal += tranches * CONFIG.repassage.prix_palier_ordinaire;
     }
     
-    if (poidsOrdinaire >= 4) {
-        const tranchesOrdinaire = Math.floor(poidsOrdinaire / 4);
-        prixTotal += tranchesOrdinaire * 150;
+    // Repassage volumineux
+    if (poidsVolumineuxKg >= CONFIG.repassage.palier_volumineux_kg) {
+        const tranches = Math.floor(poidsVolumineuxKg / CONFIG.repassage.palier_volumineux_kg);
+        prixTotal += tranches * CONFIG.repassage.prix_palier_volumineux;
     }
     
     return prixTotal;
 }
 
 // ============================================
-// CALCUL DU PRIX DE LAVAGE - LINGE VOLUMINEUX
+// CALCUL PRIX COLLECTE/LIVRAISON (DÉSACTIVÉ)
 // ============================================
-function calculerPrixLavageVolumineux(poids, temperature) {
-    if (poids <= 0) return { prix: 0, lav: 0 };
+/*
+const tarifsCommunePrix = {
+    godomey: 500,
+    cotonou: 1000,
+    calavi: 800,
+    autres: 1500
+};
+
+function calculerPrixCollecte(commune1, commune2) {
+    return (tarifsCommunePrix[commune1] || 0) + (tarifsCommunePrix[commune2] || 0);
+}
+*/
+
+// ============================================
+// EXTRAIRE LES LINGES DU FORMULAIRE
+// ============================================
+function extraireLinguesFormulaire(formData) {
+    if (!CONFIG) return [];
     
-    const grille = tarifs[temperature];
+    const linges = [];
+    const groupes = ['o1', 'o2', 'o3', 'o4', 'o5', 'v1', 'v2', 'v3', 'v4', 'v5'];
+    const couleurs = ['blanc', 'couleur'];
+    const temperatures = ['chaud', 'tiede', 'froid'];
     
-    let prix10kg = 0;
-    for (let tranche of grille) {
-        if (10 > tranche.min && 10 <= tranche.max) {
-            prix10kg = tranche.prix;
-            break;
-        }
-    }
-    
-    let prixTotal = 0;
-    let poidsRestant = poids;
-    let lav = 0;
-    
-    while (poidsRestant >= 10) {
-        const prixPremierPartie = prix10kg;
-        const prixDeuxiemePartie = Math.ceil(prix10kg * 0.55);
+    groupes.forEach(groupe => {
+        const type = groupe.startsWith('o') ? 'ordinaire' : 'volumineux';
+        const groupeKey = groupe.toUpperCase();
         
-        prixTotal += prixPremierPartie + prixDeuxiemePartie;
-        lav += 2;
-        
-        poidsRestant -= 10;
-    }
-    
-    if (poidsRestant > 0) {
-        if (poidsRestant >= 9) {
-            const prixPremierPartie = prix10kg;
-            const prixDeuxiemePartie = Math.ceil(prix10kg * 0.55);
-            prixTotal += prixPremierPartie + prixDeuxiemePartie;
-            lav += 2;
+        let proportionUnite;
+        if (type === 'ordinaire') {
+            proportionUnite = CONFIG.groupes_linges.ordinaires[groupeKey].proportion_unite;
         } else {
-            prixTotal += prix10kg;
-            lav += 1;
+            proportionUnite = CONFIG.groupes_linges.volumineux[groupeKey].proportion_unite;
         }
-    }
+        
+        couleurs.forEach(couleur => {
+            temperatures.forEach(temperature => {
+                const fieldName = `${groupe}_${couleur}_${temperature}`;
+                const nombre = parseInt(formData.get(fieldName)) || 0;
+                
+                if (nombre > 0) {
+                    linges.push({
+                        groupe: groupeKey,
+                        type: type,
+                        couleur: couleur,
+                        temperature: temperature,
+                        nombre: nombre,
+                        proportionUnite: proportionUnite,
+                        fieldName: fieldName
+                    });
+                }
+            });
+        });
+    });
     
-    return { prix: prixTotal, lav: lav };
+    return linges;
 }
 
 // ============================================
-// CALCUL DU PRIX DE LAVAGE - LINGE ORDINAIRE
-// ============================================
-function calculerPrixLavageOrdinaire(poids, temperature) {
-    if (poids <= 0) return { prix: 0, lav: 0 };
-    
-    const grille = tarifs[temperature];
-    let prixTotal = 0;
-    let lav = 0;
-    let poidsRestant = poids;
-    
-    while (poidsRestant > 0) {
-        let poidsTraite = Math.min(poidsRestant, 10);
-        
-        for (let tranche of grille) {
-            if (poidsTraite > tranche.min && poidsTraite <= tranche.max) {
-                prixTotal += tranche.prix;
-                lav += 1;
-                break;
-            }
-        }
-        
-        poidsRestant -= 10;
-    }
-    
-    return { prix: prixTotal, lav: lav };
-}
-
-// ============================================
-// ✅ FONCTION PRINCIPALE - CYCLE DE 11 LAVAGES
+// FONCTION PRINCIPALE - CALCUL PRIX TOTAL
 // ============================================
 function calculerPrixTotal() {
+    if (!CONFIG) {
+        console.warn('⚠️ Configuration non chargée');
+        return null;
+    }
+    
     const form = document.getElementById('commandeForm');
     const formData = new FormData(form);
     
-    let prixLavageTotal = 0;
-    let lavTotal = 0;
-    let poidsVolumineuxTotal = 0;
-    let poidsOrdinaireTotal = 0;
-    let poidsGrandTotal = 0;
-    const detailsPoids = [];
+    // Extraire les linges
+    const linges = extraireLinguesFormulaire(formData);
     
-    const poidsFieldsVolumineux = [
-        { name: 'a1_chaud', temp: 'chaud', label: 'Blanc Volumineux Chaud' },
-        { name: 'a1_tiede', temp: 'tiede', label: 'Blanc Volumineux Tiède' },
-        { name: 'a1_froid', temp: 'froid', label: 'Blanc Volumineux Froid' },
-        { name: 'b1_chaud', temp: 'chaud', label: 'Couleur Claire Volumineux Chaud' },
-        { name: 'b1_tiede', temp: 'tiede', label: 'Couleur Claire Volumineux Tiède' },
-        { name: 'b1_froid', temp: 'froid', label: 'Couleur Claire Volumineux Froid' },
-        { name: 'c1_chaud', temp: 'chaud', label: 'Couleur Foncée Volumineux Chaud' },
-        { name: 'c1_tiede', temp: 'tiede', label: 'Couleur Foncée Volumineux Tiède' },
-        { name: 'c1_froid', temp: 'froid', label: 'Couleur Foncée Volumineux Froid' }
-    ];
+    if (linges.length === 0) {
+        // Réinitialiser l'affichage
+        document.getElementById('prixLavageOutput').textContent = '0';
+        document.getElementById('prixSechageOutput').textContent = '0';
+        document.getElementById('prixPliageOutput').textContent = '0';
+        document.getElementById('prixRepassageOutput').textContent = '0';
+        // document.getElementById('prixCollecteOutput').textContent = '0';
+        document.getElementById('totalPayerOutput').textContent = '0';
+        document.getElementById('lavCount').textContent = '0';
+        document.getElementById('reductionFidelite').style.display = 'none';
+        
+        return null;
+    }
     
-    const poidsFieldsOrdinaire = [
-        { name: 'a2_chaud', temp: 'chaud', label: 'Blanc Ordinaire Chaud' },
-        { name: 'a2_tiede', temp: 'tiede', label: 'Blanc Ordinaire Tiède' },
-        { name: 'a2_froid', temp: 'froid', label: 'Blanc Ordinaire Froid' },
-        { name: 'b2_chaud', temp: 'chaud', label: 'Couleur Claire Ordinaire Chaud' },
-        { name: 'b2_tiede', temp: 'tiede', label: 'Couleur Claire Ordinaire Tiède' },
-        { name: 'b2_froid', temp: 'froid', label: 'Couleur Claire Ordinaire Froid' },
-        { name: 'c2_chaud', temp: 'chaud', label: 'Couleur Foncée Ordinaire Chaud' },
-        { name: 'c2_tiede', temp: 'tiede', label: 'Couleur Foncée Ordinaire Tiède' },
-        { name: 'c2_froid', temp: 'froid', label: 'Couleur Foncée Ordinaire Froid' }
-    ];
+    // Calculs
+    const lavageResult = calculerPrixLavage(linges);
+    const prixLavageBrut = lavageResult.prix;
+    const lavTotal = lavageResult.lav;
     
-    // Calculer linge VOLUMINEUX
-    poidsFieldsVolumineux.forEach(field => {
-        const poids = parseFloat(formData.get(field.name)) || 0;
-        if (poids > 0) {
-            const result = calculerPrixLavageVolumineux(poids, field.temp);
-            prixLavageTotal += result.prix;
-            lavTotal += result.lav;
-            
-            poidsVolumineuxTotal += poids;
-            poidsGrandTotal += poids;
-            detailsPoids.push({
-                label: field.label,
-                poids: poids,
-                temperature: field.temp,
-                prix: result.prix,
-                lav: result.lav,
-                type: 'volumineux'
-            });
-        }
-    });
-    
-    // Calculer linge ORDINAIRE
-    poidsFieldsOrdinaire.forEach(field => {
-        const poids = parseFloat(formData.get(field.name)) || 0;
-        if (poids > 0) {
-            const result = calculerPrixLavageOrdinaire(poids, field.temp);
-            prixLavageTotal += result.prix;
-            lavTotal += result.lav;
-            
-            poidsOrdinaireTotal += poids;
-            poidsGrandTotal += poids;
-            detailsPoids.push({
-                label: field.label,
-                poids: poids,
-                temperature: field.temp,
-                prix: result.prix,
-                lav: result.lav,
-                type: 'ordinaire'
-            });
-        }
-    });
-    
-    console.log('Prix lavage AVANT réduction:', prixLavageTotal);
-    console.log('lav total:', lavTotal);
-    console.log('nombre_lavage client:', userNombreLavage);
-    
-    // ============================================
-    // ✅ LOGIQUE FIDÉLITÉ - CYCLE DE 11 LAVAGES
-    // ============================================
+    // Fidélité
     const totalLavages = userNombreLavage + lavTotal;
     const nombreReductions = Math.floor(totalLavages / 11);
     const nouveauNombreLavage = totalLavages % 11;
     const reductionFidelite = nombreReductions * 2500;
     
-    console.log('Total lavages:', totalLavages);
-    console.log('Nombre réductions:', nombreReductions);
-    console.log('Nouveau nombre_lavage:', nouveauNombreLavage);
-    console.log('Réduction appliquée:', reductionFidelite);
+    const prixLavageFinal = Math.max(0, prixLavageBrut - reductionFidelite);
     
-    // Appliquer la réduction sur le prix de lavage
-    const prixLavageFinal = Math.max(0, prixLavageTotal - reductionFidelite);
+    const prixSechage = calculerPrixSechage(linges);
+    const prixPliage = calculerPrixPliage(linges);
+    const prixRepassage = calculerPrixRepassage(linges);
     
-    console.log('Prix lavage APRÈS réduction:', prixLavageFinal);
-    
-    // Autres calculs
-    const prixSechage = calculerPrixSechage(poidsGrandTotal);
-    const prixPliage = calculerPrixPliage(poidsGrandTotal);
-    const prixRepassage = calculerPrixRepassage(poidsVolumineuxTotal, poidsOrdinaireTotal);
-    
-    const commune1 = formData.get('communeCollecte');
-    const commune2 = formData.get('communeLivraison');
-    const prixCollecte = (tarifsCommunePrix[commune1] || 0) + (tarifsCommunePrix[commune2] || 0);
+    // const commune1 = formData.get('communeCollecte') || '';
+    // const commune2 = formData.get('communeLivraison') || '';
+    // const prixCollecte = calculerPrixCollecte(commune1, commune2);
+    const prixCollecte = 0; // DÉSACTIVÉ
     
     const total = prixLavageFinal + prixSechage + prixPliage + prixRepassage + prixCollecte;
     
     // Mise à jour affichage
-    document.getElementById('prixLavageOutput').textContent = prixLavageTotal.toLocaleString();
+    document.getElementById('prixLavageOutput').textContent = prixLavageBrut.toLocaleString();
     document.getElementById('prixSechageOutput').textContent = prixSechage.toLocaleString();
     document.getElementById('prixPliageOutput').textContent = prixPliage.toLocaleString();
     document.getElementById('prixRepassageOutput').textContent = prixRepassage.toLocaleString();
-    document.getElementById('prixCollecteOutput').textContent = prixCollecte.toLocaleString();
+    // document.getElementById('prixCollecteOutput').textContent = prixCollecte.toLocaleString();
     document.getElementById('totalPayerOutput').textContent = total.toLocaleString();
+    document.getElementById('lavCount').textContent = lavTotal;
     
     const reductionElement = document.getElementById('reductionFidelite');
-    if (reductionElement) {
-        if (reductionFidelite > 0) {
-            reductionElement.style.display = 'flex';
-            const spanElement = reductionElement.querySelector('span:nth-child(2)');
-            if (spanElement) {
-                spanElement.textContent = '-' + reductionFidelite.toLocaleString();
-            }
-        } else {
-            reductionElement.style.display = 'none';
-        }
+    if (reductionFidelite > 0) {
+        reductionElement.style.display = 'flex';
+        document.getElementById('reductionOutput').textContent = reductionFidelite.toLocaleString();
+    } else {
+        reductionElement.style.display = 'none';
     }
     
+    console.log('💰 Calcul:', {
+        prixLavageBrut,
+        lavTotal,
+        reductionFidelite,
+        prixLavageFinal,
+        total
+    });
+    
     return {
-        prixLavage: prixLavageTotal,
+        prixLavage: prixLavageBrut,
         prixLavageFinal: prixLavageFinal,
         prixSechage: prixSechage,
         prixPliage: prixPliage,
         prixRepassage: prixRepassage,
         prixCollecte: prixCollecte,
         total: total,
-        detailsPoids: detailsPoids,
-        poidsTotal: poidsGrandTotal,
+        linges: linges,
+        detailsLavage: lavageResult.details,
         reductionFidelite: reductionFidelite,
         nombreLavageClient: userNombreLavage,
         lav: lavTotal,
@@ -333,23 +383,22 @@ function calculerPrixTotal() {
 // ============================================
 // INITIALISATION
 // ============================================
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('commandeForm');
+document.addEventListener('DOMContentLoaded', async function() {
+    // Charger la configuration
+    await loadConfig();
     
+    // Charger les points utilisateur
     loadUserPoints();
     
-    const today = new Date().toISOString().split('T')[0];
+    const form = document.getElementById('commandeForm');
     
+    // Dates minimales
+    const today = new Date().toISOString().split('T')[0];
     const dateCollecte = document.getElementById('dateCollecte');
     const dateLivraison = document.getElementById('dateLivraison');
     
-    if (dateCollecte) {
-        dateCollecte.setAttribute('min', today);
-    }
-    
-    if (dateLivraison) {
-        dateLivraison.setAttribute('min', today);
-    }
+    if (dateCollecte) dateCollecte.setAttribute('min', today);
+    if (dateLivraison) dateLivraison.setAttribute('min', today);
     
     if (dateCollecte && dateLivraison) {
         dateCollecte.addEventListener('change', function() {
@@ -367,23 +416,25 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Recalcul automatique
     form.addEventListener('input', calculerPrixTotal);
     form.addEventListener('change', calculerPrixTotal);
     
     calculerPrixTotal();
     
-    // ✅ SOUMISSION DU FORMULAIRE - REDIRECTION CORRIGÉE
+    // Soumission
     form.addEventListener('submit', function(event) {
         event.preventDefault();
         
         const formData = new FormData(form);
         const prix = calculerPrixTotal();
         
-        if (prix.prixLavage === 0 && prix.reductionFidelite === 0) {
-            alert('Veuillez renseigner au moins un poids de linge.');
+        if (!prix || prix.lav === 0) {
+            alert('Veuillez renseigner au moins un linge.');
             return;
         }
         
+        // Validation dates
         const aujourdhui = new Date();
         aujourdhui.setHours(0, 0, 0, 0);
         
@@ -391,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const dateLivraisonValue = formData.get('dateLivraison');
         
         if (!dateCollecteValue || !dateLivraisonValue) {
-            alert('Veuillez renseigner les dates de collecte et de livraison.');
+            alert('Veuillez renseigner les dates.');
             return;
         }
         
@@ -399,12 +450,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const dateLivraison = new Date(dateLivraisonValue);
         
         if (dateCollecte < aujourdhui) {
-            alert('La date de collecte ne peut pas être antérieure à la date du jour.');
-            return;
-        }
-        
-        if (dateLivraison < aujourdhui) {
-            alert('La date de livraison ne peut pas être antérieure à la date du jour.');
+            alert('La date de collecte ne peut pas être antérieure à aujourd\'hui.');
             return;
         }
         
@@ -413,36 +459,24 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Préparer les données
         const orderData = {
             nomClient: formData.get('nomClient'),
             telephone: formData.get('telephone'),
             adresseCollecte: formData.get('adresseCollecte'),
             dateCollecte: formData.get('dateCollecte'),
-            communeCollecte: formData.get('communeCollecte'),
+            // communeCollecte: formData.get('communeCollecte') || '',
             adresseLivraison: formData.get('adresseLivraison'),
             dateLivraison: formData.get('dateLivraison'),
-            communeLivraison: formData.get('communeLivraison'),
-            poids: {},
-            detailsPoids: JSON.stringify(prix.detailsPoids),
-            poidsTotal: prix.poidsTotal,
+            // communeLivraison: formData.get('communeLivraison') || '',
+            linges: prix.linges,
+            detailsLavage: prix.detailsLavage,
             nombreLavageClient: prix.nombreLavageClient,
             lav: prix.lav,
             paiement: formData.get('paiement')
         };
         
-        const poidsFields = [
-            'a1_chaud', 'a1_tiede', 'a1_froid',
-            'a2_chaud', 'a2_tiede', 'a2_froid',
-            'b1_chaud', 'b1_tiede', 'b1_froid',
-            'b2_chaud', 'b2_tiede', 'b2_froid',
-            'c1_chaud', 'c1_tiede', 'c1_froid',
-            'c2_chaud', 'c2_tiede', 'c2_froid'
-        ];
-        
-        poidsFields.forEach(field => {
-            const value = parseFloat(formData.get(field)) || 0;
-            orderData.poids[field] = value;
-        });
+        console.log('📤 Envoi commande:', orderData);
         
         fetch('process_order.php', {
             method: 'POST',
@@ -454,7 +488,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // ✅ Redirection avec le moyen de paiement sélectionné
                 const paymentUrl = `payment.php?orderId=${data.orderId}&orderNumber=${encodeURIComponent(data.orderNumber)}&method=${orderData.paiement}`;
                 window.location.href = paymentUrl;
             } else {
@@ -463,7 +496,68 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Erreur:', error);
-            alert('Une erreur est survenue lors de l\'enregistrement de la commande.');
+            alert('Une erreur est survenue.');
         });
+    });
+});
+
+// ============================================
+// INTERACTIONS UI - Toggle protocole
+// ============================================
+document.getElementById('protocoleToggle')?.addEventListener('click', function() {
+    const content = document.getElementById('protocoleContent');
+    const icon = this.querySelector('.toggle-icon');
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.textContent = '▲';
+    } else {
+        content.style.display = 'none';
+        icon.textContent = '▼';
+    }
+});
+
+// Toggle type de linge
+document.getElementById('btnOrdinaire')?.addEventListener('click', function() {
+    this.classList.toggle('active');
+    const section = document.getElementById('ordinaireSection');
+    section.style.display = section.style.display === 'none' ? 'block' : 'none';
+});
+
+document.getElementById('btnVolumineux')?.addEventListener('click', function() {
+    this.classList.toggle('active');
+    const section = document.getElementById('volumineuxSection');
+    section.style.display = section.style.display === 'none' ? 'block' : 'none';
+});
+
+// Toggle groupes
+document.querySelectorAll('.groupe-toggle').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const groupe = this.dataset.groupe;
+        const content = document.getElementById(groupe + 'Content');
+        const icon = this.querySelector('.toggle-icon');
+        
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            icon.textContent = '▲';
+        } else {
+            content.style.display = 'none';
+            icon.textContent = '▼';
+        }
+    });
+});
+
+// Toggle couleurs
+document.querySelectorAll('.color-card').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const groupe = this.dataset.groupe;
+        const couleur = this.dataset.couleur;
+        const id = `${groupe}_${couleur}`;
+        
+        this.classList.toggle('active');
+        const section = document.getElementById(id);
+        if (section) {
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+        }
     });
 });
