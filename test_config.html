@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Configuration JSON - Nelco</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #252526;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        h1 {
+            color: #4ec9b0;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #4ec9b0;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #1e1e1e;
+            border-radius: 6px;
+            border-left: 4px solid #569cd6;
+        }
+        .success {
+            border-left-color: #4ec9b0;
+            background: #1a2f1a;
+        }
+        .error {
+            border-left-color: #f48771;
+            background: #2f1a1a;
+        }
+        .warning {
+            border-left-color: #dcdcaa;
+            background: #2f2a1a;
+        }
+        h2 {
+            color: #569cd6;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .success h2 { color: #4ec9b0; }
+        .error h2 { color: #f48771; }
+        .warning h2 { color: #dcdcaa; }
+        pre {
+            background: #0d0d0d;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .key { color: #9cdcfe; }
+        .string { color: #ce9178; }
+        .number { color: #b5cea8; }
+        .boolean { color: #569cd6; }
+        .null { color: #569cd6; }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 10px 10px 0;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .card {
+            background: #0d0d0d;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #3e3e42;
+        }
+        .card strong {
+            color: #4ec9b0;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
+            text-align: center;
+            border-radius: 50%;
+            margin-right: 8px;
+            font-size: 12px;
+        }
+        .icon-success { background: #4ec9b0; color: #1e1e1e; }
+        .icon-error { background: #f48771; color: #1e1e1e; }
+        .icon-warning { background: #dcdcaa; color: #1e1e1e; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Diagnostic Configuration JSON - Nelco Laverie</h1>
+        
+        <div>
+            <button onclick="testConfig()">🚀 Lancer le Test</button>
+            <button onclick="location.reload()">🔄 Recharger</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function testConfig() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="section"><h2>⏳ Test en cours...</h2></div>';
+            
+            let report = '';
+            let hasErrors = false;
+            
+            try {
+                // Test 1: Chargement du fichier
+                report += '<div class="section success"><h2><span class="icon icon-success">✓</span>Test 1: Chargement du fichier</h2>';
+                
+                const response = await fetch('laverie_config.json');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                report += `<p>✅ Fichier trouvé (Status: ${response.status})</p>`;
+                
+                const CONFIG = await response.json();
+                report += '<p>✅ JSON parsé avec succès</p></div>';
+                
+                // Test 2: Structure globale
+                report += '<div class="section">';
+                report += '<h2><span class="icon icon-success">✓</span>Test 2: Structure Globale</h2>';
+                
+                const requiredKeys = [
+                    'groupes_linges',
+                    'machines',
+                    'tarifs_lavage',
+                    'tarifs_sechage',
+                    'pliage',
+                    'repassage'
+                ];
+                
+                let missingKeys = [];
+                requiredKeys.forEach(key => {
+                    if (!CONFIG[key]) {
+                        missingKeys.push(key);
+                        hasErrors = true;
+                    }
+                });
+                
+                if (missingKeys.length === 0) {
+                    report += '<p>✅ Toutes les clés principales présentes</p>';
+                } else {
+                    report += `<p class="error">❌ Clés manquantes: ${missingKeys.join(', ')}</p>`;
+                }
+                
+                report += '<div class="grid">';
+                requiredKeys.forEach(key => {
+                    const exists = CONFIG[key] !== undefined;
+                    report += `<div class="card"><strong>${key}</strong>${exists ? '✅' : '❌'}</div>`;
+                });
+                report += '</div></div>';
+                
+                // Test 3: Groupes Linges
+                report += '<div class="section">';
+                report += '<h2><span class="icon icon-success">✓</span>Test 3: Groupes de Linges</h2>';
+                
+                if (!CONFIG.groupes_linges) {
+                    report += '<p class="error">❌ groupes_linges manquant</p>';
+                    hasErrors = true;
+                } else {
+                    // Test ordinaires
+                    if (!CONFIG.groupes_linges.ordinaires) {
+                        report += '<p class="error">❌ groupes_linges.ordinaires manquant</p>';
+                        hasErrors = true;
+                    } else {
+                        const groupesO = ['O1', 'O2', 'O3', 'O4', 'O5'];
+                        report += '<h3 style="color: #4ec9b0; margin-top: 15px;">Linges Ordinaires</h3>';
+                        report += '<div class="grid">';
+                        
+                        groupesO.forEach(g => {
+                            const data = CONFIG.groupes_linges.ordinaires[g];
+                            if (!data) {
+                                report += `<div class="card"><strong>${g}</strong>❌ Manquant</div>`;
+                                hasErrors = true;
+                            } else {
+                                const hasDesc = data.description !== undefined;
+                                const hasProp = data.proportion_unite !== undefined;
+                                report += `<div class="card">
+                                    <strong>${g}</strong>
+                                    ${hasDesc ? '✅' : '❌'} Description<br>
+                                    ${hasProp ? '✅' : '❌'} Proportion: ${data.proportion_unite || '?'}
+                                </div>`;
+                                if (!hasDesc || !hasProp) hasErrors = true;
+                            }
+                        });
+                        report += '</div>';
+                    }
+                    
+                    // Test volumineux
+                    if (!CONFIG.groupes_linges.volumineux) {
+                        report += '<p class="error">❌ groupes_linges.volumineux manquant</p>';
+                        hasErrors = true;
+                    } else {
+                        const groupesV = ['V1', 'V2', 'V3', 'V4', 'V5'];
+                        report += '<h3 style="color: #4ec9b0; margin-top: 15px;">Linges Volumineux</h3>';
+                        report += '<div class="grid">';
+                        
+                        groupesV.forEach(g => {
+                            const data = CONFIG.groupes_linges.volumineux[g];
+                            if (!data) {
+                                report += `<div class="card"><strong>${g}</strong>❌ Manquant</div>`;
+                                hasErrors = true;
+                            } else {
+                                const hasDesc = data.description !== undefined;
+                                const hasProp = data.proportion_unite !== undefined;
+                                report += `<div class="card">
+                                    <strong>${g}</strong>
+                                    ${hasDesc ? '✅' : '❌'} Description<br>
+                                    ${hasProp ? '✅' : '❌'} Proportion: ${data.proportion_unite || '?'}
+                                </div>`;
+                                if (!hasDesc || !hasProp) hasErrors = true;
+                            }
+                        });
+                        report += '</div>';
+                    }
+                }
+                report += '</div>';
+                
+                // Test 4: Machines
+                report += '<div class="section">';
+                report += '<h2><span class="icon icon-success">✓</span>Test 4: Configuration Machines</h2>';
+                
+                if (!CONFIG.machines) {
+                    report += '<p class="error">❌ machines manquant</p>';
+                    hasErrors = true;
+                } else {
+                    ['ordinaire', 'volumineux'].forEach(type => {
+                        const machine = CONFIG.machines[type];
+                        if (!machine) {
+                            report += `<p class="error">❌ machines.${type} manquant</p>`;
+                            hasErrors = true;
+                        } else {
+                            report += `<div class="card">
+                                <strong>${type.toUpperCase()}</strong>
+                                Capacité: ${machine.capacite_kg || '?'} kg<br>
+                                Seuil: ${machine.seuil_remplissage || '?'}
+                            </div>`;
+                        }
+                    });
+                }
+                report += '</div>';
+                
+                // Test 5: Tarifs Lavage
+                report += '<div class="section">';
+                report += '<h2><span class="icon icon-success">✓</span>Test 5: Tarifs de Lavage</h2>';
+                
+                if (!CONFIG.tarifs_lavage) {
+                    report += '<p class="error">❌ tarifs_lavage manquant</p>';
+                    hasErrors = true;
+                } else {
+                    const temps = ['chaud', 'tiede', 'froid'];
+                    ['ordinaire', 'volumineux'].forEach(type => {
+                        if (!CONFIG.tarifs_lavage[type]) {
+                            report += `<p class="error">❌ tarifs_lavage.${type} manquant</p>`;
+                            hasErrors = true;
+                        } else {
+                            report += `<h3 style="color: #4ec9b0; margin-top: 10px;">${type.toUpperCase()}</h3>`;
+                            report += '<div class="grid">';
+                            temps.forEach(temp => {
+                                const tarif = CONFIG.tarifs_lavage[type][temp];
+                                report += `<div class="card"><strong>${temp}</strong>${tarif !== undefined ? tarif + ' FCFA' : '❌ Manquant'}</div>`;
+                                if (tarif === undefined) hasErrors = true;
+                            });
+                            report += '</div>';
+                        }
+                    });
+                }
+                report += '</div>';
+                
+                // Test 6: JSON Complet
+                report += '<div class="section">';
+                report += '<h2><span class="icon icon-success">✓</span>Test 6: Aperçu JSON Complet</h2>';
+                report += '<pre>' + JSON.stringify(CONFIG, null, 2) + '</pre>';
+                report += '</div>';
+                
+                // Résultat Final
+                if (hasErrors) {
+                    report += '<div class="section error">';
+                    report += '<h2><span class="icon icon-error">✗</span>❌ ÉCHEC DU TEST</h2>';
+                    report += '<p>Des erreurs ont été détectées dans la configuration.</p>';
+                    report += '<p><strong>Action requise:</strong> Corrigez les erreurs signalées ci-dessus.</p>';
+                    report += '</div>';
+                } else {
+                    report += '<div class="section success">';
+                    report += '<h2><span class="icon icon-success">✓</span>✅ TEST RÉUSSI</h2>';
+                    report += '<p>La configuration JSON est valide et complète !</p>';
+                    report += '<p>Le bouton "Linges Volumineux" devrait fonctionner correctement.</p>';
+                    report += '</div>';
+                }
+                
+            } catch (error) {
+                report += '<div class="section error">';
+                report += '<h2><span class="icon icon-error">✗</span>❌ ERREUR CRITIQUE</h2>';
+                report += `<p><strong>Message:</strong> ${error.message}</p>`;
+                report += '<p><strong>Vérifications:</strong></p>';
+                report += '<ul>';
+                report += '<li>Le fichier <code>laverie_config.json</code> existe-t-il ?</li>';
+                report += '<li>Est-il au bon emplacement (même dossier que cette page) ?</li>';
+                report += '<li>Le JSON est-il valide ? (pas d\'erreurs de syntaxe)</li>';
+                report += '<li>Les permissions de lecture sont-elles correctes ?</li>';
+                report += '</ul>';
+                report += '</div>';
+            }
+            
+            resultsDiv.innerHTML = report;
+        }
+        
+        // Lancer automatiquement au chargement
+        window.addEventListener('load', () => {
+            setTimeout(testConfig, 500);
+        });
+    </script>
+</body>
+</html>
