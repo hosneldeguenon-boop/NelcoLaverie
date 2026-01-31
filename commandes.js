@@ -715,9 +715,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             categories.forEach(cat => {
                 const poidsInput = document.querySelector(`input[name="${cat}_poids"]`);
+                const tempInput = document.getElementById(`${cat}_temperature`);
                 
-                // ✨ Vérifier seulement les champs visibles
-                if (poidsInput && poidsInput.closest('.poids-group').style.display !== 'none') {
+                if (poidsInput) {
                     const poids = parseFloat(poidsInput.value) || 0;
                     
                     if (poids > 0) {
@@ -725,7 +725,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         sommePoids += poids;
                         
                         // Vérifier qu'une température est sélectionnée SEULEMENT si poids > 0
-                        const tempInput = document.getElementById(`${cat}_temperature`);
                         if (!tempInput || !tempInput.value) {
                             alert(`Veuillez sélectionner une température pour le sous-tas ${cat.toUpperCase()}.`);
                             validationError = true;
@@ -796,6 +795,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // ✅ CALCUL DU RÉCAPITULATIF (nouvelle logique)
     // ============================================
     function calculerRecapitulatif() {
+        console.log('=== DÉBUT CALCUL RÉCAPITULATIF ===');
+        
         let prixLavageTotal = 0;
         let lavTotal = 0;
         let poidsVolumineuxTotal = 0;
@@ -818,10 +819,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const poids = parseFloat(poidsInput.value) || 0;
                 const temp = tempInput.value;
                 
+                console.log(`Champ ${field.cat}: poids=${poids}, temp=${temp}`);
+                
                 if (poids > 0 && temp) {
                     const result = field.type === 'volumineux'
                         ? calculerPrixLavageVolumineux(poids, temp)
                         : calculerPrixLavageOrdinaire(poids, temp);
+                    
+                    console.log(`  -> Résultat: prix=${result.prix}, lav=${result.lav}`);
                     
                     prixLavageTotal += result.prix;
                     lavTotal += result.lav;
@@ -836,48 +841,78 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
+        console.log(`Totaux: lavage=${prixLavageTotal}, lav=${lavTotal}, poids=${poidsGrandTotal}`);
+        
         // Calcul de la réduction fidélité
         const totalLavages = userNombreLavage + lavTotal;
         const reductionFidelite = Math.floor(totalLavages / 11) * 2500;
         const prixLavageFinal = Math.max(0, prixLavageTotal - reductionFidelite);
         
+        console.log(`Fidélité: userNombreLavage=${userNombreLavage}, totalLavages=${totalLavages}, réduction=${reductionFidelite}`);
+        
         // Calcul séchage, pliage, repassage
         const prixSechage = calculerPrixSechage(poidsGrandTotal);
         const prixPliage = calculerPrixPliage(poidsGrandTotal);
+        
+        console.log(`Séchage=${prixSechage}, Pliage=${prixPliage}`);
         
         const repassageChoice = document.querySelector('input[name="repassage"]:checked');
         let prixRepassage = 0;
         
         if (repassageChoice && repassageChoice.value === 'oui') {
             prixRepassage = calculerPrixRepassage(poidsVolumineuxTotal, poidsOrdinaireTotal);
+            console.log(`Repassage=${prixRepassage}`);
         }
         
         // Total
         const total = prixLavageFinal + prixSechage + prixPliage + prixRepassage;
         
+        console.log(`TOTAL FINAL=${total}`);
+        
+        // Vérifier que les éléments existent avant de les mettre à jour
+        const elemRecapPrixLavage = document.getElementById('recapPrixLavage');
+        const elemRecapPrixSechage = document.getElementById('recapPrixSechage');
+        const elemRecapPrixPliage = document.getElementById('recapPrixPliage');
+        const elemRecapTotal = document.getElementById('recapTotal');
+        
+        if (!elemRecapPrixLavage || !elemRecapPrixSechage || !elemRecapPrixPliage || !elemRecapTotal) {
+            console.error('ERREUR: Un ou plusieurs éléments de récapitulatif sont introuvables!');
+            console.error({
+                elemRecapPrixLavage: !!elemRecapPrixLavage,
+                elemRecapPrixSechage: !!elemRecapPrixSechage,
+                elemRecapPrixPliage: !!elemRecapPrixPliage,
+                elemRecapTotal: !!elemRecapTotal
+            });
+            return;
+        }
+        
         // Affichage
-        document.getElementById('recapPrixLavage').textContent = prixLavageTotal.toFixed(0) + ' FCFA';
-        document.getElementById('recapPrixSechage').textContent = prixSechage.toFixed(0) + ' FCFA';
-        document.getElementById('recapPrixPliage').textContent = prixPliage.toFixed(0) + ' FCFA';
-        document.getElementById('recapTotal').textContent = total.toFixed(0) + ' FCFA';
+        elemRecapPrixLavage.textContent = Math.round(prixLavageTotal).toLocaleString() + ' FCFA';
+        elemRecapPrixSechage.textContent = Math.round(prixSechage).toLocaleString() + ' FCFA';
+        elemRecapPrixPliage.textContent = Math.round(prixPliage).toLocaleString() + ' FCFA';
+        elemRecapTotal.textContent = Math.round(total).toLocaleString() + ' FCFA';
+        
+        console.log('Affichage mis à jour');
         
         // Réduction fidélité
         const recapReductionContainer = document.getElementById('recapReductionContainer');
-        if (reductionFidelite > 0) {
+        if (reductionFidelite > 0 && recapReductionContainer) {
             recapReductionContainer.style.display = 'flex';
-            document.getElementById('recapReduction').textContent = '- ' + reductionFidelite.toFixed(0) + ' FCFA';
-        } else {
+            document.getElementById('recapReduction').textContent = '- ' + Math.round(reductionFidelite).toLocaleString() + ' FCFA';
+        } else if (recapReductionContainer) {
             recapReductionContainer.style.display = 'none';
         }
         
         // Repassage
         const recapRepassageContainer = document.getElementById('recapRepassageContainer');
-        if (repassageChoice && repassageChoice.value === 'oui') {
+        if (repassageChoice && repassageChoice.value === 'oui' && recapRepassageContainer) {
             recapRepassageContainer.style.display = 'flex';
-            document.getElementById('recapPrixRepassage').textContent = prixRepassage.toFixed(0) + ' FCFA';
-        } else {
+            document.getElementById('recapPrixRepassage').textContent = Math.round(prixRepassage).toLocaleString() + ' FCFA';
+        } else if (recapRepassageContainer) {
             recapRepassageContainer.style.display = 'none';
         }
+        
+        console.log('=== FIN CALCUL RÉCAPITULATIF ===');
     }
     
     // ============================================
