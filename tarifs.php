@@ -448,7 +448,7 @@
     </section>
 
     <div class="hero-buttons">
-        <a href="commandes_v2.php" class="btn btn-primary">🛒 Passer commande maintenant</a>
+        <a href="commandes.html" class="btn btn-primary">🛒 Passer commande maintenant</a>
     </div>
 
     <script>

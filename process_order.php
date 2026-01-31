@@ -1,7 +1,7 @@
 <?php
 /**
- * ✅ TRAITEMENT COMMANDES - SYSTÈME BASÉ SUR NOMBRE DE LINGES
- * Cycle fidélité 11 lavages - VERSION FINALE AVEC CUSTOMER_CODE
+ * ✅ TRAITEMENT COMMANDES COMPLÈTES - VERSION MISE À JOUR
+ * Gère les nouvelles fonctionnalités : heures, descriptions, repassage optionnel
  */
 
 session_start();
@@ -16,7 +16,7 @@ try {
 
     $userId = $_SESSION['user_id'];
     
-    // Récupération données POST
+    // Récupération données
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
     
@@ -24,29 +24,25 @@ try {
         throw new Exception('Données invalides');
     }
     
-    // Validation champs requis
     $requiredFields = [
-        'nomClient', 'telephone', 'adresseCollecte', 'dateCollecte',
-        'adresseLivraison', 'dateLivraison', 'paiement', 'linges'
+        'nomClient', 'telephone', 'adresseCollecte', 'adresseLivraison',
+        'dateCollecte', 'heureCollecte', 'dateLivraison', 'heureLivraison',
+        'poidsTotal', 'poids', 'repassage', 'paiement'
     ];
     
     foreach ($requiredFields as $field) {
-        if (!isset($data[$field]) || (is_string($data[$field]) && trim($data[$field]) === '')) {
+        if (!isset($data[$field])) {
             throw new Exception("Le champ $field est requis");
         }
-    }
-    
-    if (!is_array($data['linges']) || empty($data['linges'])) {
-        throw new Exception('Aucun linge spécifié');
     }
     
     // Connexion BDD
     $conn = getDBConnection();
     $conn->beginTransaction();
     
-    // ✅ Récupérer utilisateur avec customer_code ET points_counter
+    // Récupérer utilisateur avec points_counter
     $stmt = $conn->prepare("
-        SELECT id, email, firstname, lastname, phone, customer_code, points_counter 
+        SELECT customer_code, points_counter 
         FROM users 
         WHERE id = ? 
         FOR UPDATE
@@ -58,221 +54,227 @@ try {
         throw new Exception('Utilisateur introuvable');
     }
     
-    // ✅ Récupérer customer_code et nombre de lavages
-    $customerCode = $user['customer_code'];
     $ancienNombreLavage = intval($user['points_counter']);
     
     // ============================================
-    // CHARGEMENT CONFIGURATION JSON
+    // GRILLE TARIFAIRE
     // ============================================
-    $configPath = __DIR__ . '/laverie_config.json';
-    
-    if (!file_exists($configPath)) {
-        throw new Exception('Fichier de configuration introuvable');
-    }
-    
-    $configJson = file_get_contents($configPath);
-    $config = json_decode($configJson, true);
-    
-    if (!$config || json_last_error() !== JSON_ERROR_NONE) {
-        throw new Exception('Erreur de lecture de la configuration: ' . json_last_error_msg());
-    }
+    $tarifs = [
+        'froid' => [
+            ['min' => 0, 'max' => 6, 'prix' => 2500],
+            ['min' => 6, 'max' => 8, 'prix' => 3000],
+            ['min' => 8, 'max' => 10, 'prix' => 5000]
+        ],
+        'tiede' => [
+            ['min' => 0, 'max' => 6, 'prix' => 3000],
+            ['min' => 6, 'max' => 8, 'prix' => 3500],
+            ['min' => 8, 'max' => 10, 'prix' => 6000]
+        ],
+        'chaud' => [
+            ['min' => 0, 'max' => 6, 'prix' => 3500],
+            ['min' => 6, 'max' => 8, 'prix' => 4000],
+            ['min' => 8, 'max' => 10, 'prix' => 7000]
+        ],
+        'choix' => [  // Au choix = tarif chaud
+            ['min' => 0, 'max' => 6, 'prix' => 3500],
+            ['min' => 6, 'max' => 8, 'prix' => 4000],
+            ['min' => 8, 'max' => 10, 'prix' => 7000]
+        ]
+    ];
     
     // ============================================
     // FONCTIONS DE CALCUL
     // ============================================
-    
-    /**
-     * Calcule le nombre de lavages requis
-     */
-    function calculerNombreLavages($linges, $config) {
-        $details = [];
-        $nombreLavagesTotal = 0;
+    function calculerPrixLavageVolumineux($poids, $temperature, $tarifs) {
+        if ($poids <= 0) return ['prix' => 0, 'lav' => 0];
         
-        // Grouper par type_couleur_température
-        $groupes = [];
+        $grille = $tarifs[$temperature];
         
-        foreach ($linges as $item) {
-            $cle = $item['type'] . '_' . $item['couleur'] . '_' . $item['temperature'];
-            
-            if (!isset($groupes[$cle])) {
-                $groupes[$cle] = [
-                    'type' => $item['type'],
-                    'couleur' => $item['couleur'],
-                    'temperature' => $item['temperature'],
-                    'proportionTotale' => 0,
-                    'items' => []
-                ];
+        $prix10kg = 0;
+        foreach ($grille as $tranche) {
+            if (10 > $tranche['min'] && 10 <= $tranche['max']) {
+                $prix10kg = $tranche['prix'];
+                break;
             }
-            
-            $proportion = $item['nombre'] * $item['proportionUnite'];
-            $groupes[$cle]['proportionTotale'] += $proportion;
-            $groupes[$cle]['items'][] = [
-                'groupe' => $item['groupe'],
-                'nombre' => $item['nombre'],
-                'proportion' => $proportion
-            ];
         }
         
-        // Calculer le nombre de lavages pour chaque groupe
-        foreach ($groupes as $cle => $groupe) {
-            $seuil = $config['machines'][$groupe['type']]['seuil_remplissage'];
-            $capacite = $config['machines'][$groupe['type']]['capacite_kg'];
-            $proportionUtile = $capacite * $seuil;
-            
-            $quotient = floor($groupe['proportionTotale'] / $proportionUtile);
-            $reste = $groupe['proportionTotale'] - ($quotient * $proportionUtile);
-            
-            $nombreLavages = $quotient + ($reste > 0 ? 1 : 0);
-            
-            $nombreLavagesTotal += $nombreLavages;
-            
-            $details[] = [
-                'cle' => $cle,
-                'type' => $groupe['type'],
-                'couleur' => $groupe['couleur'],
-                'temperature' => $groupe['temperature'],
-                'proportionTotale' => $groupe['proportionTotale'],
-                'nombreLavages' => $nombreLavages,
-                'items' => $groupe['items']
-            ];
-        }
-        
-        return ['nombreLavages' => $nombreLavagesTotal, 'details' => $details];
-    }
-    
-    /**
-     * Calcule le prix de lavage
-     */
-    function calculerPrixLavage($linges, $config) {
-        if (empty($linges)) return ['prix' => 0, 'lav' => 0, 'details' => []];
-        
-        $resultatsLavage = calculerNombreLavages($linges, $config);
         $prixTotal = 0;
+        $poidsRestant = $poids;
+        $lav = 0;
         
-        foreach ($resultatsLavage['details'] as &$detail) {
-            $tarif = $config['tarifs_lavage'][$detail['type']][$detail['temperature']];
-            $prix = $detail['nombreLavages'] * $tarif;
-            $prixTotal += $prix;
+        while ($poidsRestant >= 10) {
+            $prixPremierPartie = $prix10kg;
+            $prixDeuxiemePartie = ceil($prix10kg * 0.55);
             
-            $detail['prix'] = $prix;
-            $detail['tarif'] = $tarif;
+            $prixTotal += $prixPremierPartie + $prixDeuxiemePartie;
+            $lav += 2;
+            
+            $poidsRestant -= 10;
         }
         
-        return [
-            'prix' => $prixTotal,
-            'lav' => $resultatsLavage['nombreLavages'],
-            'details' => $resultatsLavage['details']
-        ];
-    }
-    
-    /**
-     * Calcule le prix de séchage
-     */
-    function calculerPrixSechage($linges, $config) {
-        if (empty($linges)) return 0;
-        
-        $poidsTotalKg = 0;
-        foreach ($linges as $item) {
-            $poidsTotalKg += $item['nombre'] * $item['proportionUnite'];
-        }
-        
-        foreach ($config['tarifs_sechage'] as $palier) {
-            if ($poidsTotalKg <= $palier['poids_max_kg']) {
-                return $palier['prix'];
+        if ($poidsRestant > 0) {
+            if ($poidsRestant >= 9) {
+                $prixPremierPartie = $prix10kg;
+                $prixDeuxiemePartie = ceil($prix10kg * 0.55);
+                $prixTotal += $prixPremierPartie + $prixDeuxiemePartie;
+                $lav += 2;
+            } else {
+                $prixTotal += $prix10kg;
+                $lav += 1;
             }
         }
         
-        $dernierPalier = end($config['tarifs_sechage']);
-        return $dernierPalier['prix'];
+        return ['prix' => $prixTotal, 'lav' => $lav];
     }
     
-    /**
-     * Calcule le prix de pliage
-     */
-    function calculerPrixPliage($linges, $config) {
-        if (empty($linges)) return 0;
+    function calculerPrixLavageOrdinaire($poids, $temperature, $tarifs) {
+        if ($poids <= 0) return ['prix' => 0, 'lav' => 0];
         
-        $poidsTotalKg = 0;
-        foreach ($linges as $item) {
-            $poidsTotalKg += $item['nombre'] * $item['proportionUnite'];
+        $grille = $tarifs[$temperature];
+        $prixTotal = 0;
+        $lav = 0;
+        $poidsRestant = $poids;
+        
+        while ($poidsRestant > 0) {
+            $poidsTraite = min($poidsRestant, 10);
+            
+            foreach ($grille as $tranche) {
+                if ($poidsTraite > $tranche['min'] && $poidsTraite <= $tranche['max']) {
+                    $prixTotal += $tranche['prix'];
+                    $lav += 1;
+                    break;
+                }
+            }
+            
+            $poidsRestant -= 10;
         }
         
-        if ($poidsTotalKg < $config['pliage']['minimum_kg']) return 0;
-        
-        $quotient = floor($poidsTotalKg / $config['pliage']['palier_kg']);
-        $reste = $poidsTotalKg - ($quotient * $config['pliage']['palier_kg']);
-        
-        $prix = $quotient * $config['pliage']['prix_par_palier'];
-        
-        if ($reste >= $config['pliage']['minimum_kg']) {
-            $prix += $config['pliage']['prix_par_palier'];
-        }
-        
+        return ['prix' => $prixTotal, 'lav' => $lav];
+    }
+    
+    function calculerPrixSechage($poids) {
+        if ($poids <= 0) return 0;
+        if ($poids <= 2) return 1000;
+        if ($poids <= 3) return 1500;
+        if ($poids <= 4) return 2000;
+        if ($poids <= 6) return 2500;
+        if ($poids <= 8) return 3000;
+        return 3000 + calculerPrixSechage($poids - 8);
+    }
+    
+    function calculerPrixPliage($poidsTotal) {
+        if ($poidsTotal < 4) return 0;
+        $quotient = floor($poidsTotal / 8);
+        $reste = $poidsTotal % 8;
+        $prix = $quotient * 500;
+        if ($reste >= 4) $prix += 500;
         return $prix;
     }
     
-    /**
-     * Calcule le prix de repassage
-     */
-    function calculerPrixRepassage($linges, $config) {
-        if (empty($linges)) return 0;
-        
-        $poidsOrdinaireKg = 0;
-        $poidsVolumineuxKg = 0;
-        
-        foreach ($linges as $item) {
-            $poids = $item['nombre'] * $item['proportionUnite'];
-            if ($item['type'] === 'ordinaire') {
-                $poidsOrdinaireKg += $poids;
-            } else {
-                $poidsVolumineuxKg += $poids;
-            }
-        }
-        
+    function calculerPrixRepassage($poidsVolumineux, $poidsOrdinaire) {
         $prixTotal = 0;
-        
-        // Repassage ordinaire
-        if ($poidsOrdinaireKg >= $config['repassage']['palier_ordinaire_kg']) {
-            $tranches = floor($poidsOrdinaireKg / $config['repassage']['palier_ordinaire_kg']);
-            $prixTotal += $tranches * $config['repassage']['prix_palier_ordinaire'];
+        if ($poidsVolumineux >= 4) {
+            $prixTotal += floor($poidsVolumineux / 4) * 200;
         }
-        
-        // Repassage volumineux
-        if ($poidsVolumineuxKg >= $config['repassage']['palier_volumineux_kg']) {
-            $tranches = floor($poidsVolumineuxKg / $config['repassage']['palier_volumineux_kg']);
-            $prixTotal += $tranches * $config['repassage']['prix_palier_volumineux'];
+        if ($poidsOrdinaire >= 4) {
+            $prixTotal += floor($poidsOrdinaire / 4) * 150;
         }
-        
         return $prixTotal;
     }
     
     // ============================================
-    // CALCULS PRINCIPAUX
+    // TRAITEMENT DES POIDS
     // ============================================
+    $poidsData = $data['poids'];
+    $categoriesVolumineux = ['a1', 'b1', 'c1'];
+    $categoriesOrdinaire = ['a2', 'b2', 'c2'];
     
-    $linges = $data['linges'];
+    $prixLavageTotal = 0;
+    $lavTotal = 0;
+    $poidsVolumineuxTotal = 0;
+    $poidsOrdinaireTotal = 0;
+    $poidsGrandTotal = 0;
+    $detailsPoids = [];
     
-    $lavageResult = calculerPrixLavage($linges, $config);
-    $prixLavageBrut = $lavageResult['prix'];
-    $lavTotal = $lavageResult['lav'];
+    // VOLUMINEUX
+    foreach ($categoriesVolumineux as $cat) {
+        foreach (['chaud', 'tiede', 'froid', 'choix'] as $temp) {
+            $key = "{$cat}_{$temp}";
+            $poids = floatval($poidsData[$key] ?? 0);
+            
+            if ($poids > 0) {
+                $result = calculerPrixLavageVolumineux($poids, $temp, $tarifs);
+                $prixLavageTotal += $result['prix'];
+                $lavTotal += $result['lav'];
+                $poidsVolumineuxTotal += $poids;
+                $poidsGrandTotal += $poids;
+                
+                $detailsPoids[] = [
+                    'categorie' => $key,
+                    'poids' => $poids,
+                    'temperature' => $temp,
+                    'prix' => $result['prix'],
+                    'lav' => $result['lav'],
+                    'type' => 'volumineux'
+                ];
+            }
+        }
+    }
+    
+    // ORDINAIRE
+    foreach ($categoriesOrdinaire as $cat) {
+        foreach (['chaud', 'tiede', 'froid', 'choix'] as $temp) {
+            $key = "{$cat}_{$temp}";
+            $poids = floatval($poidsData[$key] ?? 0);
+            
+            if ($poids > 0) {
+                $result = calculerPrixLavageOrdinaire($poids, $temp, $tarifs);
+                $prixLavageTotal += $result['prix'];
+                $lavTotal += $result['lav'];
+                $poidsOrdinaireTotal += $poids;
+                $poidsGrandTotal += $poids;
+                
+                $detailsPoids[] = [
+                    'categorie' => $key,
+                    'poids' => $poids,
+                    'temperature' => $temp,
+                    'prix' => $result['prix'],
+                    'lav' => $result['lav'],
+                    'type' => 'ordinaire'
+                ];
+            }
+        }
+    }
+    
+    if ($prixLavageTotal == 0) {
+        throw new Exception('Aucun linge à laver');
+    }
     
     // ============================================
-    // ✅ LOGIQUE FIDÉLITÉ - CYCLE DE 11 LAVAGES
+    // LOGIQUE FIDÉLITÉ - CYCLE DE 11 LAVAGES
     // ============================================
     $totalLavages = $ancienNombreLavage + $lavTotal;
     $nombreReductions = floor($totalLavages / 11);
     $nouveauNombreLavage = $totalLavages % 11;
     $reductionFidelite = $nombreReductions * 2500;
     
-    // Appliquer réduction sur le prix de lavage
-    $prixLavageFinal = max(0, $prixLavageBrut - $reductionFidelite);
+    // Appliquer réduction
+    $prixLavageFinal = max(0, $prixLavageTotal - $reductionFidelite);
     
-    // Autres calculs
-    $prixSechage = calculerPrixSechage($linges, $config);
-    $prixPliage = calculerPrixPliage($linges, $config);
-    $prixRepassage = calculerPrixRepassage($linges, $config);
-    $prixCollecte = 3000; // Prix fixe collecte/livraison
+    // ============================================
+    // AUTRES CALCULS
+    // ============================================
+    $prixSechage = calculerPrixSechage($poidsGrandTotal);
+    $prixPliage = calculerPrixPliage($poidsGrandTotal);
+    
+    // Repassage : calculer seulement si demandé
+    $prixRepassage = 0;
+    if ($data['repassage'] === 'oui') {
+        $prixRepassage = calculerPrixRepassage($poidsVolumineuxTotal, $poidsOrdinaireTotal);
+    }
+    
+    // Plus de prix de collecte/livraison (commune supprimée)
+    $prixCollecte = 0;
     
     $totalCommande = $prixLavageFinal + $prixSechage + $prixPliage + $prixRepassage + $prixCollecte;
     
@@ -287,13 +289,23 @@ try {
     $orderDetails = [
         'nomClientSaisi' => cleanInput($data['nomClient']),
         'telephoneSaisi' => cleanInput($data['telephone']),
-        'linges' => $linges,
-        'detailsLavage' => $lavageResult['details'],
-        'prixLavageBrut' => $prixLavageBrut,
+        'adresseCollecte' => cleanInput($data['adresseCollecte']),
+        'descriptionCollecte' => cleanInput($data['descriptionCollecte'] ?? ''),
+        'adresseLivraison' => cleanInput($data['adresseLivraison']),
+        'descriptionLivraison' => cleanInput($data['descriptionLivraison'] ?? ''),
+        'dateCollecte' => $data['dateCollecte'],
+        'heureCollecte' => $data['heureCollecte'],
+        'dateLivraison' => $data['dateLivraison'],
+        'heureLivraison' => $data['heureLivraison'],
+        'poids' => $poidsData,
+        'poidsTotal' => $data['poidsTotal'],
+        'detailsPoidsComplets' => $detailsPoids,
+        'prixLavageBrut' => $prixLavageTotal,
         'prixLavage' => $prixLavageFinal,
         'prixSechage' => $prixSechage,
         'prixPliage' => $prixPliage,
         'prixRepassage' => $prixRepassage,
+        'repassageDemande' => $data['repassage'],
         'prixCollecte' => $prixCollecte,
         'reductionFidelite' => $reductionFidelite,
         'moyenPaiement' => cleanInput($data['paiement']),
@@ -303,15 +315,7 @@ try {
     ];
     
     // ============================================
-    // CALCUL POIDS TOTAL
-    // ============================================
-    $poidsTotal = 0;
-    foreach ($linges as $item) {
-        $poidsTotal += $item['nombre'] * $item['proportionUnite'];
-    }
-    
-    // ============================================
-    // ✅ INSERTION COMMANDE (AVEC customer_code)
+    // INSERTION COMMANDE
     // ============================================
     $stmt = $conn->prepare("
         INSERT INTO orders (
@@ -334,7 +338,6 @@ try {
             order_details,
             payment_method,
             status,
-            points_at_order,
             nombre_lavage_commande,
             nombre_lavage_avant,
             nombre_lavage_apres
@@ -342,18 +345,32 @@ try {
             ?, ?, ?, 'lavage_complet',
             ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, 'pending', ?, ?, ?, ?
+            ?, ?, 'pending', ?, ?, ?
         )
     ");
+    
+    // Combiner date et heure
+    $pickupDateTime = $data['dateCollecte'] . ' ' . $data['heureCollecte'] . ':00';
+    $deliveryDateTime = $data['dateLivraison'] . ' ' . $data['heureLivraison'] . ':00';
+    
+    $pickupAddress = cleanInput($data['adresseCollecte']);
+    if (isset($data['descriptionCollecte']) && $data['descriptionCollecte']) {
+        $pickupAddress .= ' - ' . cleanInput($data['descriptionCollecte']);
+    }
+    
+    $deliveryAddress = cleanInput($data['adresseLivraison']);
+    if (isset($data['descriptionLivraison']) && $data['descriptionLivraison']) {
+        $deliveryAddress .= ' - ' . cleanInput($data['descriptionLivraison']);
+    }
     
     $stmt->execute([
         $userId,
         $orderNumber,
-        $customerCode, // ✅ Ajouté ici
-        cleanInput($data['adresseCollecte']),
-        $data['dateCollecte'],
-        cleanInput($data['adresseLivraison']),
-        $data['dateLivraison'],
+        $user['customer_code'],
+        $pickupAddress,
+        $pickupDateTime,
+        $deliveryAddress,
+        $deliveryDateTime,
         $totalCommande,
         $prixLavageFinal,
         $prixSechage,
@@ -361,10 +378,9 @@ try {
         $prixRepassage,
         $prixCollecte,
         $reductionFidelite,
-        $poidsTotal,
+        $poidsGrandTotal,
         json_encode($orderDetails, JSON_UNESCAPED_UNICODE),
         cleanInput($data['paiement']),
-        $ancienNombreLavage,
         $lavTotal,
         $ancienNombreLavage,
         $nouveauNombreLavage
@@ -375,13 +391,11 @@ try {
     // Valider transaction
     $conn->commit();
     
-    // Réponse succès
     echo json_encode([
         'success' => true,
         'message' => 'Commande enregistrée avec succès',
         'orderId' => $orderId,
         'orderNumber' => $orderNumber,
-        'customerCode' => $customerCode,
         'debug' => [
             'ancienNombreLavage' => $ancienNombreLavage,
             'lavCommande' => $lavTotal,
@@ -389,29 +403,24 @@ try {
             'nombreReductions' => $nombreReductions,
             'nouveauNombreLavage' => $nouveauNombreLavage,
             'reductionFidelite' => $reductionFidelite,
-            'prixLavageBrut' => $prixLavageBrut,
+            'prixLavageBrut' => $prixLavageTotal,
             'prixLavageFinal' => $prixLavageFinal,
-            'totalCommande' => $totalCommande
+            'prixRepassage' => $prixRepassage,
+            'repassageDemande' => $data['repassage']
         ]
-    ], JSON_UNESCAPED_UNICODE);
+    ]);
     
 } catch (Exception $e) {
-    // Rollback en cas d'erreur
     if (isset($conn) && $conn->inTransaction()) {
         $conn->rollBack();
     }
     
-    // Log erreur
-    error_log("❌ Erreur process_order: " . $e->getMessage());
-    error_log("Stack trace: " . $e->getTraceAsString());
+    error_log("Erreur process_order: " . $e->getMessage());
     
-    // Réponse erreur
     http_response_code(400);
     echo json_encode([
         'success' => false,
-        'message' => $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine()
-    ], JSON_UNESCAPED_UNICODE);
+        'message' => $e->getMessage()
+    ]);
 }
 ?>
